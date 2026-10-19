@@ -66,7 +66,7 @@ const LEAD = LEAD_SRC.map(bar => {
 });
 const ROOTS = [45, 41, 48, 43, 45, 41, 48, 43];
 const CHORDS = [[69, 72, 76], [65, 69, 72], [72, 76, 79], [67, 71, 74]];
-let mGain = null, happyGain = null, sadGain = null, noiseBuf = null, mTimer = null, mNext = 0, mStep = 0, mVol = -1, sadMode = false;
+let mGain = null, happyGain = null, sadGain = null, noiseBuf = null, mTimer = null, mNext = 0, mStep = 0, mVol = -1, sadMode = false, musicKind = 'main';
 function tone(f, t, d, type, vol, bus = happyGain, att = .006) {
   const o = actx.createOscillator(), g = actx.createGain();
   o.type = type; o.frequency.setValueAtTime(f, t);
@@ -114,6 +114,56 @@ function playSadStep(step, t, sd) {
   if (s === 0 || s === 8) tone(hz(SAD_ROOTS[bar]), t, sd * 7.5, 'sine', .22, sadGain, .04);
   if (s % 2 === 0) tone(hz(SAD_CHORDS[bar][(s / 2) % 3]), t, sd * 3, 'triangle', .05, sadGain, .01);
 }
+// musica di PANC MAN: arcade veloce in Re minore (Dm - Sib - Do - La), originale
+const PANC_SRC = [
+  "D5 . F5 . A5 . F5 . D5 . F5 . A5 . D6 .",
+  "A#4 . D5 . F5 . D5 . A#4 . D5 . F5 . A#5 .",
+  "C5 . E5 . G5 . E5 . C5 . E5 . G5 . C6 .",
+  "A4 . C#5 . E5 . C#5 . A4 . E5 . A5 - - .",
+  "D6 D6 . A5 . D6 . F6 A5 . A5 . F5 . D5 .",
+  "A#5 A#5 . F5 . A#5 . D6 F5 . F5 . D5 . A#4 .",
+  "C6 C6 . G5 . C6 . E6 G5 . G5 . E5 . C5 .",
+  "C#6 . A5 . E5 . A5 . C#6 . E6 - - . A5 ."
+];
+const PANC = PANC_SRC.map(bar => {
+  const tk = bar.split(' '); if (tk.length !== 16) throw new Error('battuta panc non da 16');
+  return tk.map((t, i) => { if (t === '.' || t === '-') return null; let len = 1, j = i + 1; while (j < 16 && tk[j] === '-') { len++; j++; } if (j < 16 && tk[j] === '.') len += .6; return { m: midi(t), len }; });
+});
+const PANC_ROOTS = [50, 46, 48, 45], PANC_CHORDS = [[62, 65, 69], [58, 62, 65], [60, 64, 67], [57, 61, 64]];
+function playPancStep(step, t, sd) {
+  const bar = Math.floor(step / 16) % 8, s = step % 16, n = PANC[bar][s], root = PANC_ROOTS[bar % 4];
+  if (n) tone(hz(n.m), t, n.len * sd * .9, 'square', .075);
+  if (s === 0 || s === 3 || s === 6 || s === 8 || s === 11 || s === 14) tone(hz(root + (s === 3 || s === 11 ? 12 : s === 14 ? 7 : 0)), t, sd * 1.7, 'triangle', .2);
+  if (s % 2 === 1) tone(hz(PANC_CHORDS[bar % 4][((s - 1) / 2) % 3]), t, sd * .8, 'square', .024);
+  if (s === 0 || s === 6 || s === 8 || s === 12) kick(t);
+  if (s === 4 || s === 12) noise(t, .09, .12, 1800);
+  noise(t, .02, .03, 9000);
+}
+// musica di BAND BLOCKS: groove da puzzle in La minore (Am - F - G - Em), originale
+const TET_SRC = [
+  "E5 . A5 . E5 . C5 . E5 . . . A4 . . .",
+  "F5 . A5 . F5 . C5 . F5 . . . C5 . A4 .",
+  "G5 . B5 . G5 . D5 . G5 . . . D5 . B4 .",
+  "E5 . G5 . B5 . G5 . E5 - - . B4 . . .",
+  "A5 . C6 . A5 . E5 . A5 . C6 . E6 . C6 .",
+  "A5 . C6 . A5 . F5 . A5 . C6 . F6 . C6 .",
+  "B5 . D6 . B5 . G5 . B5 . D6 . G6 . D6 .",
+  "G5 . B5 . E6 - - . B5 . G5 . E5 . . ."
+];
+const TETM = TET_SRC.map(bar => {
+  const tk = bar.split(' '); if (tk.length !== 16) throw new Error('battuta tetris non da 16');
+  return tk.map((t, i) => { if (t === '.' || t === '-') return null; let len = 1, j = i + 1; while (j < 16 && tk[j] === '-') { len++; j++; } if (j < 16 && tk[j] === '.') len += .8; return { m: midi(t), len }; });
+});
+const TET_ROOTS = [45, 41, 43, 40], TET_CHORDS = [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 55, 59]];
+function playTetStep(step, t, sd) {
+  const bar = Math.floor(step / 16) % 8, s = step % 16, n = TETM[bar][s], root = TET_ROOTS[bar % 4];
+  if (n) tone(hz(n.m), t, n.len * sd * .95, 'square', .07);
+  if (s % 4 === 0) tone(hz(root + (s === 12 ? 7 : 0)), t, sd * 3.4, 'triangle', .21);
+  if (s % 2 === 1) tone(hz(TET_CHORDS[bar % 4][((s - 1) / 2) % 3] + 12), t, sd * .8, 'square', .02);
+  if (s === 0 || s === 8) kick(t);
+  if (s === 4 || s === 12) noise(t, .1, .1, 1700);
+  if (s % 2 === 0) noise(t, .02, .035, 8500);
+}
 function musicStart() {
   if (mTimer || !ac()) return;
   try {
@@ -134,8 +184,18 @@ function musicStart() {
         const sd = 60 / 64 / 4;
         while (mNext < now + .15) { playSadStep(mStep, mNext, sd); mNext += sd; mStep = (mStep + 1) % 64; }
       } else {
-        const bpm = state === 'run' ? 132 + Math.min(40, Math.max(0, speed - 6.5) * 4.5) : 132, sd = 60 / bpm / 4;
-        while (mNext < now + .15) { playStep(mStep, mNext, sd); mNext += sd; mStep = (mStep + 1) % 128; }
+        const kind = (typeof mode !== 'undefined' && state !== 'menu' && (mode === 'panc' || mode === 'tetris')) ? mode : 'main';
+        if (kind !== musicKind) { musicKind = kind; mStep = 0; mNext = now + .1; }
+        if (kind === 'panc') {
+          const bpm = (typeof pc !== 'undefined' && pc.fright > 0) ? 168 : 148, sd = 60 / bpm / 4;
+          while (mNext < now + .15) { playPancStep(mStep, mNext, sd); mNext += sd; mStep = (mStep + 1) % 128; }
+        } else if (kind === 'tetris') {
+          const bpm = 118 + (typeof tet !== 'undefined' ? Math.min(40, (tet.level - 1) * 5) : 0), sd = 60 / bpm / 4;
+          while (mNext < now + .15) { playTetStep(mStep, mNext, sd); mNext += sd; mStep = (mStep + 1) % 128; }
+        } else {
+          const bpm = state === 'run' ? 132 + Math.min(40, Math.max(0, speed - 6.5) * 4.5) : 132, sd = 60 / bpm / 4;
+          while (mNext < now + .15) { playStep(mStep, mNext, sd); mNext += sd; mStep = (mStep + 1) % 128; }
+        }
       }
     }, 25);
   } catch (e) {}
@@ -428,7 +488,7 @@ function reset() {
 reset();
 function startGame() {
   if (!fsTried) { fsTried = true; if (FS_OK && !fsEl()) toggleFS(); }
-  reset(); mode = (sel === GABRI) ? 'panc' : 'runner'; if (mode === 'panc') pcInit(1, true); state = 'run'; hintT = 330; safeSet('duemilas_char', sel); beep(520, .1, 'square', .05, 1040);
+  reset(); mode = (sel === GABRI) ? 'panc' : (sel === PALME) ? 'tetris' : 'runner'; if (mode === 'panc') pcInit(1, true); if (mode === 'tetris') tetInit(); state = 'run'; hintT = 330; safeSet('duemilas_char', sel); beep(520, .1, 'square', .05, 1040);
 }
 function burst(x, y, n, cols, sp = 4, up = 2) {
   for (let i = 0; i < n; i++) particles.push({ x, y, vx: rnd(-sp, sp), vy: rnd(-sp, sp) - up, life: rnd(25, 50), max: 50, c: cols[i % cols.length], s: rnd(3, 7) });
@@ -475,6 +535,7 @@ function update(dt) {
   if (state === 'menu') { discoT += dt * .6; player.ft += k; if (player.ft > 6) { player.ft = 0; player.frame++; } return; }
   if (state !== 'run') return;
   if (mode === 'panc') { pcUpdate(dt / 1000); return; }
+  if (mode === 'tetris') { tetUpdate(dt / 1000); return; }
   const vel = speed * vf;
   discoT += dt; groundOff += vel * k; if (hintT > 0) hintT -= k;
   speed = Math.min(15, speed + .0011 * k);
@@ -586,6 +647,7 @@ function drawBackground() {
 const FLOORS = [['#d6246e', '#a8185a'], ['#26d98a', '#15a56a'], ['#f6c030', '#e08a1e'], ['#7a5cf0', '#5a3fc8']];
 function draw(t) {
   if (mode === 'panc' && state !== 'menu') { pcFrame(t); return; }
+  if (mode === 'tetris' && state !== 'menu') { tetFrame(t); return; }
   ctx.setTransform(sx, 0, 0, sy, 0, 0);
   ctx.save();
   if (shake > 0) ctx.translate(rnd(-shake, shake) * .5, rnd(-shake, shake) * .5);
@@ -693,7 +755,7 @@ function drawMenu(t) {
   const g = MG;
   const ts = 60 * ui, ty = safe.t + 18 * ui + ts * .82;
   logoTitle('DUEMILAS', W / 2 - ts * .12, ty, ts);
-  text(sel === GABRI ? 'PANC MAN: mangia tutti i puntini!' : 'Salta più amplificatori possibili!', W / 2, ty + ts * .66 * .9 + 30 * ui, 24 * ui, '#fff');
+  text(sel === GABRI ? 'PANC MAN: mangia tutti i puntini!' : sel === PALME ? 'BAND BLOCKS: incastra gli strumenti!' : 'Salta più amplificatori possibili!', W / 2, ty + ts * .66 * .9 + 30 * ui, 24 * ui, '#fff');
   for (let i = 0; i < CHARS.length; i++) {
     const [x, y, w, h] = g.cards[i], on = i === sel;
     ctx.fillStyle = on ? 'rgba(20,8,40,.88)' : 'rgba(20,8,40,.58)'; ctx.fillRect(x, y, w, h);
@@ -709,7 +771,8 @@ function drawMenu(t) {
       const s2 = clamp(Math.floor((ph - 36) / 36), 2, 5); drawChar(i, px + pw / 2 - 13 * s2, py + 4, s2, on ? player.frame : 0, false, false, false);
     }
     if (!on) { ctx.fillStyle = 'rgba(10,4,30,.38)'; ctx.fillRect(px, py, pw, ph); }
-    if (i === GABRI) { ctx.font = "15px Impact,'Arial Black',sans-serif"; const bw = ctx.measureText('PANC MAN').width + 22; ctx.fillStyle = '#ffd400'; ctx.fillRect(px + 6, py + 6, bw, 24); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(px + 6, py + 6, bw, 24); ctx.fillStyle = '#000'; ctx.textAlign = 'left'; ctx.fillText('PANC MAN', px + 17, py + 23); ctx.beginPath(); ctx.arc(px + 12, py + 18, 0, 0, 7); }
+    const bl = i === GABRI ? 'PANC MAN' : i === PALME ? 'BAND BLOCKS' : null;
+    if (bl) { ctx.font = "15px Impact,'Arial Black',sans-serif"; const bw = ctx.measureText(bl).width + 22; ctx.fillStyle = '#ffd400'; ctx.fillRect(px + 6, py + 6, bw, 24); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(px + 6, py + 6, bw, 24); ctx.fillStyle = '#000'; ctx.textAlign = 'left'; ctx.fillText(bl, px + 17, py + 23); }
     ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(px, py, pw, ph);
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(px, py + ph - 30, pw, 30);
     text(CHARS[i].name, x + w / 2, py + ph - 7, clamp(w / 9, 20, 30), on ? '#f6c862' : '#fff');
@@ -725,49 +788,56 @@ function drawMenu(t) {
 const GABRI = CHARS.findIndex(c => c.name === 'GABRI');
 let mode = 'runner', swipe = null;
 const PC_MAZE = [
-  "###################",
-  "#........#........#",
-  "#o##.###.#.###.##o#",
-  "#.................#",
-  "#.##.#.#####.#.##.#",
-  "#....#...#...#....#",
-  "####.###.#.###.####",
-  "####.#.......#.####",
-  "#....#.##-##.#....#",
-  "#..#.#.#   #.#.#..#",
-  "#.##.#.#####.#.##.#",
-  "#....#...#...#....#",
-  "####.###.#.###.####",
-  "####.#.......#.####",
-  "#........#........#",
-  "#.##.###.#.###.##.#",
-  "#o.#...........#.o#",
-  "##.#.#.#####.#.#.##",
-  "#....#...#...#....#",
-  "#.######.#.######.#",
-  "###################"
+  "############################",
+  "#............##............#",
+  "#.####.#####.##.#####.####.#",
+  "#o####.#####.##.#####.####o#",
+  "#.####.#####.##.#####.####.#",
+  "#..........................#",
+  "#.####.##.########.##.####.#",
+  "#.####.##.########.##.####.#",
+  "#......##....##....##......#",
+  "######.##### ## #####.######",
+  "######.##### ## #####.######",
+  "######.##          ##.######",
+  "######.## ###--### ##.######",
+  "######.## #      # ##.######",
+  "      .   #      #   .      ",
+  "######.## #      # ##.######",
+  "######.## ######## ##.######",
+  "######.##          ##.######",
+  "######.## ######## ##.######",
+  "######.## ######## ##.######",
+  "#............##............#",
+  "#.####.#####.##.#####.####.#",
+  "#.####.#####.##.#####.####.#",
+  "#o..##.......  .......##..o#",
+  "###.##.##.########.##.##.###",
+  "###.##.##.########.##.##.###",
+  "#......##....##....##......#",
+  "#.##########.##.##########.#",
+  "#.##########.##.##########.#",
+  "#..........................#",
+  "############################"
 ];
-const PCR = PC_MAZE.length, PCC = PC_MAZE[0].length;
+const PCR = PC_MAZE.length, PCC = PC_MAZE[0].length, TUN = 14;
 const PC_DIRS = [[0, -1], [-1, 0], [0, 1], [1, 0]];
 const PC_KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowDown: [0, 1], KeyS: [0, 1], ArrowRight: [1, 0], KeyD: [1, 0] };
-const pc = { grid: [], dots: 0, score: 0, hi: +safeGet('duemilas_pmhi') || 0, lives: 3, level: 1, p: null, ghosts: [], fright: 0, chain: 0, sub: 'ready', subT: 0, modeT: 0, scatter: true, want: null, hint: 0, waka: 0 };
+const FRUIT_PTS = [100, 300, 500, 700, 1000];
+const pc = { grid: [], dots: 0, eaten: 0, score: 0, hi: +safeGet('duemilas_pmhi') || 0, lives: 3, level: 1, p: null, ghosts: [], fright: 0, chain: 0, sub: 'ready', subT: 0, modeT: 0, scatter: true, want: null, waka: 0, fruit: null };
 const GH_DEF = [
-  { name: 'red', color: '#ff3030', sc: [17, 1], start: [9, 7], rel: 0 },
-  { name: 'pink', color: '#ffa0e0', sc: [1, 1], start: [9, 9], rel: 2.5 },
-  { name: 'cyan', color: '#30e0f0', sc: [17, 19], start: [8, 9], rel: 6 },
-  { name: 'orange', color: '#ffa030', sc: [1, 19], start: [10, 9], rel: 9.5 },
+  { name: 'red', color: '#ff3030', sc: [25, 1], start: [13, 11], rel: 0 },
+  { name: 'pink', color: '#ffa0e0', sc: [2, 1], start: [13, 14], rel: 1.5 },
+  { name: 'cyan', color: '#30e0f0', sc: [26, 29], start: [11, 14], rel: 5 },
+  { name: 'orange', color: '#ffa030', sc: [1, 29], start: [16, 14], rel: 9 },
 ];
-const pcTile = (c, r) => (r < 0 || r >= PCR || c < 0 || c >= PCC) ? '#' : pc.grid[r][c];
+const pcTile = (c, r) => { if (r === TUN && (c < 0 || c >= PCC)) return ' '; return (r < 0 || r >= PCR || c < 0 || c >= PCC) ? '#' : pc.grid[r][c]; };
 function pcPositions() {
-  pc.p = { x: 9, y: 13, dx: 0, dy: 0 }; pc.want = null; pc.fright = 0; pc.chain = 0; pc.modeT = 0; pc.scatter = true;
-  pc.ghosts = GH_DEF.map(d => ({ name: d.name, color: d.color, sc: d.sc, x: d.start[0], y: d.start[1], dx: d.name === 'red' ? -1 : 0, dy: 0, state: d.name === 'red' ? 'normal' : 'house', rel: d.rel * Math.max(.5, 1 - (pc.level - 1) * .12), t: 0 }));
+  pc.p = { x: 13, y: 23, dx: 0, dy: 0 }; pc.want = null; pc.fright = 0; pc.chain = 0; pc.modeT = 0; pc.scatter = true; pc.fruit = null;
+  pc.ghosts = GH_DEF.map(d => ({ name: d.name, color: d.color, sc: d.sc, x: d.start[0], y: d.start[1], dx: d.name === 'red' ? -1 : 0, dy: 0, state: d.name === 'red' ? 'normal' : 'house', rel: d.rel * Math.max(.5, 1 - (pc.level - 1) * .12) }));
 }
-function pcInit(level, fresh) {
-  pc.grid = PC_MAZE.map(r => r.split('')); pc.dots = 0;
-  pc.grid.forEach(row => row.forEach(ch => { if (ch === '.' || ch === 'o') pc.dots++; }));
-  pc.level = level; if (fresh) { pc.score = 0; pc.lives = 3; }
-  pc.sub = 'ready'; pc.subT = 0; pc.hint = 6; pcPositions();
-}
+function pcFillGrid() { pc.grid = PC_MAZE.map(r => r.split('')); pc.dots = 0; pc.eaten = 0; pc.grid.forEach(row => row.forEach(ch => { if (ch === '.' || ch === 'o') pc.dots++; })); }
+function pcInit(level, fresh) { pcFillGrid(); pc.level = level; if (fresh) { pc.score = 0; pc.lives = 3; } pc.sub = 'ready'; pc.subT = 0; pcPositions(); }
 function moveEnt(e, dist, decide) {
   let guard = 0;
   while (dist > 1e-6 && guard++ < 12) {
@@ -777,6 +847,7 @@ function moveEnt(e, dist, decide) {
     const ny = e.dy > 0 ? Math.floor(e.y + 1e-9) + 1 : e.dy < 0 ? Math.ceil(e.y - 1e-9) - 1 : e.y;
     const d = e.dx ? Math.abs(nx - e.x) : Math.abs(ny - e.y), m = Math.min(d, dist);
     if (m >= d - 1e-9) { e.x = nx; e.y = ny; } else { e.x += e.dx * m; e.y += e.dy * m; }
+    if (e.x <= -1 + 1e-9) e.x += PCC; else if (e.x >= PCC - 1e-9) e.x -= PCC;   // tunnel laterale
     dist -= m;
   }
 }
@@ -786,9 +857,13 @@ function pcFright() {
 }
 function pcEat(c, r) {
   const t = pc.grid[r][c];
-  if (t === '.') { pc.grid[r][c] = ' '; pc.score += 10; pc.dots--; pc.waka ^= 1; beep(pc.waka ? 260 : 190, .04, 'square', .03); }
-  else if (t === 'o') { pc.grid[r][c] = ' '; pc.score += 50; pc.dots--; pcFright(); beep(120, .2, 'sawtooth', .05, 400); }
-  if (pc.dots <= 0 && pc.sub === 'run') { pc.sub = 'clear'; pc.subT = 0; beep(660, .3, 'square', .05, 1320); }
+  if (t === '.' || t === 'o') {
+    pc.grid[r][c] = ' '; pc.dots--; pc.eaten++;
+    if (t === '.') { pc.score += 10; pc.waka ^= 1; beep(pc.waka ? 260 : 190, .04, 'square', .03); }
+    else { pc.score += 50; pcFright(); beep(120, .2, 'sawtooth', .05, 400); }
+    if ((pc.eaten === 70 || pc.eaten === 170) && !pc.fruit) pc.fruit = { x: 13.5, y: 17, life: 9.5, type: (pc.level - 1) % FRUIT_PTS.length };
+    if (pc.dots <= 0 && pc.sub === 'run') { pc.sub = 'clear'; pc.subT = 0; beep(660, .3, 'square', .05, 1320); }
+  }
 }
 function pcPlayerDecide(e, c, r) {
   pcEat(c, r);
@@ -804,18 +879,18 @@ function ghostCan(g, c, r, dx, dy) {
 }
 function ghostTarget(g) {
   const p = pc.p;
-  if (g.state === 'leave') return [9, 7];
-  if (g.state === 'eaten') return [9, 9];
+  if (g.state === 'leave') return [13, 11];
+  if (g.state === 'eaten') return [13, 14];
   if (pc.scatter) return g.sc;
-  const ahead = (n) => [p.x + (p.dx || 0) * n, p.y + (p.dy || 0) * n];
+  const ahead = n => [p.x + (p.dx || 0) * n, p.y + (p.dy || 0) * n];
   if (g.name === 'red') return [p.x, p.y];
   if (g.name === 'pink') return ahead(4);
   if (g.name === 'cyan') { const a = ahead(2), r0 = pc.ghosts[0]; return [a[0] * 2 - r0.x, a[1] * 2 - r0.y]; }
   return Math.hypot(g.x - p.x, g.y - p.y) > 8 ? [p.x, p.y] : g.sc;
 }
 function ghostDecide(g, c, r) {
-  if (g.state === 'leave' && r <= 7) g.state = 'normal';
-  if (g.state === 'eaten' && c === 9 && r === 9) g.state = 'leave';
+  if (g.state === 'leave' && r <= 11) g.state = 'normal';
+  if (g.state === 'eaten' && c === 13 && r === 14) g.state = 'leave';
   const opts = PC_DIRS.filter(([dx, dy]) => ghostCan(g, c, r, dx, dy) && !(dx === -g.dx && dy === -g.dy && (g.dx || g.dy)));
   const list = opts.length ? opts : PC_DIRS.filter(([dx, dy]) => ghostCan(g, c, r, dx, dy));
   if (!list.length) { g.dx = 0; g.dy = 0; return; }
@@ -825,29 +900,36 @@ function ghostDecide(g, c, r) {
   g.dx = best[0]; g.dy = best[1];
 }
 function pcUpdate(dt) {
-  dt = Math.min(dt, .05); pc.subT += dt; if (pc.hint > 0) pc.hint -= dt;
+  dt = Math.min(dt, .05); pc.subT += dt;
   if (pc.sub === 'ready') { if (pc.subT > 1.8) { pc.sub = 'run'; pc.subT = 0; } return; }
   if (pc.sub === 'dying') { if (pc.subT > 1.5) { pc.lives--; if (pc.lives <= 0) pcOver(); else { pcPositions(); pc.sub = 'ready'; pc.subT = 0; } } return; }
-  if (pc.sub === 'clear') { if (pc.subT > 1.8) { const lv = pc.level + 1; pc.grid = PC_MAZE.map(r => r.split('')); pc.dots = 0; pc.grid.forEach(row => row.forEach(ch => { if (ch === '.' || ch === 'o') pc.dots++; })); pc.level = lv; pc.sub = 'ready'; pc.subT = 0; pcPositions(); } return; }
+  if (pc.sub === 'clear') { if (pc.subT > 1.8) { const lv = pc.level + 1; pcFillGrid(); pc.level = lv; pc.sub = 'ready'; pc.subT = 0; pcPositions(); } return; }
   const p = pc.p, lv = pc.level - 1;
-  // fasi scatter / chase
   if (pc.fright > 0) { pc.fright -= dt; if (pc.fright <= 0) pc.ghosts.forEach(g => { if (g.state === 'fright') g.state = 'normal'; }); }
   else { pc.modeT += dt; const lim = pc.scatter ? Math.max(3, 7 - lv) : 20; if (pc.modeT > lim) { pc.modeT = 0; pc.scatter = !pc.scatter; pc.ghosts.forEach(g => { if (g.state === 'normal') { g.dx = -g.dx; g.dy = -g.dy; } }); } }
-  // giocatore
   const w = pc.want; if (w && (p.dx || p.dy) && w[0] === -p.dx && w[1] === -p.dy) { p.dx = w[0]; p.dy = w[1]; }
-  moveEnt(p, 6.4 * dt, pcPlayerDecide);
+  moveEnt(p, Math.min(8.4, 7.4 + lv * .1) * dt, pcPlayerDecide);
   if (pc.sub !== 'run') return;
-  // fantasmi
+  if (pc.fruit) {
+    pc.fruit.life -= dt;
+    if (pc.fruit.life <= 0) pc.fruit = null;
+    else if (Math.hypot(p.x - pc.fruit.x, p.y - pc.fruit.y) < .8) {
+      const pts = FRUIT_PTS[pc.fruit.type], G = pcGeom(); pc.score += pts;
+      floaters.push({ x: G.ox + (pc.fruit.x + .5) * G.cs, y: G.oy + (pc.fruit.y + .5) * G.cs, t: '' + pts, life: 60 }); beep(880, .25, 'square', .05, 1760); pc.fruit = null;
+    }
+  }
   for (const g of pc.ghosts) {
-    if (g.state === 'house') { g.t += dt; g.rel -= dt; if (g.rel <= 0) { g.state = 'leave'; g.dx = 0; g.dy = 0; } continue; }
-    const sp = g.state === 'eaten' ? 12 : g.state === 'fright' ? 3.6 : g.state === 'leave' ? 4.2 : Math.min(7.2, 5.5 + lv * .25);
+    if (g.state === 'house') { g.rel -= dt; if (g.rel <= 0) { g.state = 'leave'; g.dx = 0; g.dy = 0; } continue; }
+    const sp = g.state === 'eaten' ? 14 : g.state === 'fright' ? 4.2 : g.state === 'leave' ? 5 : Math.min(8.2, 6.9 + lv * .25);
     moveEnt(g, sp * dt, ghostDecide);
   }
   for (const g of pc.ghosts) {
     if (g.state === 'house' || g.state === 'eaten') continue;
-    if (Math.hypot(g.x - p.x, g.y - p.y) < .6) {
-      if (g.state === 'fright') { g.state = 'eaten'; const pts = 200 * Math.pow(2, Math.min(pc.chain, 3)); pc.chain++; pc.score += pts; floaters.push({ x: pcGeom().ox + (g.x + .5) * pcGeom().cs, y: pcGeom().oy + (g.y + .5) * pcGeom().cs, t: '' + pts, life: 50 }); beep(500, .15, 'square', .05, 1200); }
-      else { pc.sub = 'dying'; pc.subT = 0; beep(300, .5, 'sawtooth', .06, 50); return; }
+    if (Math.hypot(g.x - p.x, g.y - p.y) < .65) {
+      if (g.state === 'fright') {
+        g.state = 'eaten'; const pts = 200 * Math.pow(2, Math.min(pc.chain, 3)), G = pcGeom(); pc.chain++; pc.score += pts;
+        floaters.push({ x: G.ox + (g.x + .5) * G.cs, y: G.oy + (g.y + .5) * G.cs, t: '' + pts, life: 50 }); beep(500, .15, 'square', .05, 1200);
+      } else { pc.sub = 'dying'; pc.subT = 0; beep(300, .5, 'sawtooth', .06, 50); return; }
     }
   }
 }
@@ -856,9 +938,33 @@ function pcOver() {
   if (pc.score > pc.hi) { pc.hi = pc.score; newRecord = true; safeSet('duemilas_pmhi', pc.hi); } else newRecord = false;
 }
 function pcGeom() {
-  const mt = portrait ? safe.t + 100 * ui : safe.t + 80 * ui, mb = portrait ? safe.b + 120 * ui : safe.b + 22 * ui;
-  const cs = Math.max(8, Math.floor(Math.min((W - 24) / PCC, (H - mt - mb) / PCR))), mw = cs * PCC, mh = cs * PCR;
-  return { cs, mw, mh, ox: Math.round((W - mw) / 2), oy: Math.round(mt + (H - mt - mb - mh) / 2) };
+  const side = !portrait && W / H >= 1.5;
+  const mt = side ? safe.t + 14 : safe.t + 100 * ui, mb = side ? safe.b + 14 : safe.b + 110 * ui;
+  const cs = Math.max(8, Math.floor(Math.min((W - 16) / PCC, (H - mt - mb) / PCR))), mw = cs * PCC, mh = cs * PCR;
+  return { cs, mw, mh, side, ox: Math.round((W - mw) / 2), oy: Math.round(mt + (H - mt - mb - mh) / 2) };
+}
+function pcFruitDraw(type, cx, cy, r) {
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const leaf = (x, y, w, h) => { ctx.fillStyle = '#2bbf3a'; ctx.beginPath(); ctx.ellipse(x, y, w, h, -.5, 0, 7); ctx.fill(); };
+  if (type === 0) { // ciliegie
+    ctx.strokeStyle = '#2bbf3a'; ctx.lineWidth = r * .14; ctx.beginPath(); ctx.moveTo(cx - r * .4, cy + r * .3); ctx.quadraticCurveTo(cx - r * .1, cy - r * .7, cx + r * .5, cy - r * .85); ctx.moveTo(cx + r * .4, cy + r * .45); ctx.quadraticCurveTo(cx + r * .4, cy - r * .5, cx + r * .5, cy - r * .85); ctx.stroke();
+    ctx.fillStyle = '#e8202a'; ctx.beginPath(); ctx.arc(cx - r * .42, cy + r * .4, r * .42, 0, 7); ctx.arc(cx + r * .42, cy + r * .5, r * .42, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ffb0b0'; ctx.fillRect(cx - r * .58, cy + r * .25, r * .15, r * .15);
+  } else if (type === 1) { // fragola
+    ctx.fillStyle = '#ff2a4a'; ctx.beginPath(); ctx.moveTo(cx - r * .7, cy - r * .35); ctx.quadraticCurveTo(cx, cy - r * .7, cx + r * .7, cy - r * .35); ctx.quadraticCurveTo(cx + r * .5, cy + r * .8, cx, cy + r * .95); ctx.quadraticCurveTo(cx - r * .5, cy + r * .8, cx - r * .7, cy - r * .35); ctx.fill();
+    ctx.fillStyle = '#2bbf3a'; ctx.fillRect(cx - r * .45, cy - r * .62, r * .9, r * .22);
+    ctx.fillStyle = '#fff3a0'; [[-.3, 0], [.25, -.05], [0, .3], [-.25, .45], [.3, .4]].forEach(([a, b]) => ctx.fillRect(cx + a * r, cy + b * r, r * .12, r * .12));
+  } else if (type === 2) { // arancia
+    ctx.fillStyle = '#ff9a20'; ctx.beginPath(); ctx.arc(cx, cy + r * .1, r * .75, 0, 7); ctx.fill(); leaf(cx + r * .1, cy - r * .7, r * .4, r * .2);
+    ctx.fillStyle = '#ffd090'; ctx.fillRect(cx - r * .4, cy - r * .2, r * .2, r * .2);
+  } else if (type === 3) { // mela
+    ctx.fillStyle = '#ee2a2a'; ctx.beginPath(); ctx.arc(cx - r * .3, cy + r * .1, r * .55, 0, 7); ctx.arc(cx + r * .3, cy + r * .1, r * .55, 0, 7); ctx.fill(); leaf(cx + r * .3, cy - r * .55, r * .38, r * .18);
+    ctx.fillStyle = '#ffb0b0'; ctx.fillRect(cx - r * .6, cy - r * .1, r * .18, r * .18);
+  } else { // melone
+    ctx.fillStyle = '#3fcf4a'; ctx.beginPath(); ctx.arc(cx, cy + r * .1, r * .78, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#1a7a2a'; ctx.lineWidth = r * .1; ctx.beginPath(); ctx.moveTo(cx - r * .5, cy - r * .3); ctx.lineTo(cx + r * .5, cy + r * .5); ctx.moveTo(cx + r * .5, cy - r * .3); ctx.lineTo(cx - r * .5, cy + r * .5); ctx.stroke();
+  }
+  ctx.restore();
 }
 function pcGhostDraw(g, cx, cy, r, t) {
   if (g.state !== 'eaten') {
@@ -880,60 +986,75 @@ function pcPlayerDraw(p, cx, cy, r, t) {
   const mouth = dying ? prog * Math.PI : (pc.sub === 'run' && (p.dx || p.dy) ? Math.abs(Math.sin(t / 70)) * .8 : .25);
   if (mouth >= Math.PI - .02) return;
   ctx.fillStyle = '#ffd400'; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, ang + mouth, ang + Math.PI * 2 - mouth); ctx.closePath(); ctx.fill();
-  if (dying && prog > .6) return;
-  // cresta punk sopra la testa
-  const base = cy - r * .78, hs = [.55, .9, 1.1, .85, .5];
-  for (let i = 0; i < 5; i++) { const x = cx + (i - 2) * r * .26, h = hs[i] * r * .8; ctx.fillStyle = i % 2 ? '#ffe9a0' : '#fff6cc'; ctx.beginPath(); ctx.moveTo(x - r * .13, base + r * .12); ctx.lineTo(x, base - h); ctx.lineTo(x + r * .13, base + r * .12); ctx.closePath(); ctx.fill(); }
-  ctx.fillStyle = '#e8d8a8'; ctx.fillRect(cx - r * .62, base + r * .02, r * 1.24, r * .14);
+  if (dying && prog > .5) return;
+  // cresta punk: 7 punte alte, inclinate all'indietro rispetto alla corsa, con la punta rosa
+  const lean = -(p.dx || 0) * r * .32, base = cy - r * .62, hs = [.55, .9, 1.25, 1.55, 1.25, .9, .55];
+  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1, r * .08); ctx.strokeStyle = '#7a5a10';
+  for (let i = 0; i < 7; i++) {
+    const x = cx + (i - 3) * r * .2, h = hs[i] * r * .85, tx = x + lean * hs[i] * 1.1, ty = base - h;
+    ctx.fillStyle = i % 2 ? '#ffe680' : '#fff6cc';
+    ctx.beginPath(); ctx.moveTo(x - r * .11, base + r * .25); ctx.lineTo(tx, ty); ctx.lineTo(x + r * .11, base + r * .25); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ff5fb8'; ctx.beginPath(); ctx.moveTo(tx - (tx - x) * .0 - r * .035, ty + h * .22); ctx.lineTo(tx, ty); ctx.lineTo(tx + r * .035, ty + h * .22); ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = '#e8c850'; ctx.fillRect(cx - r * .72, base + r * .12, r * 1.44, r * .16);
   // occhiali da sole
   const ox2 = (p.dx || 0) * r * .18, oy2 = (p.dy || 0) * r * .12;
-  ctx.fillStyle = '#111'; ctx.fillRect(cx - r * .42 + ox2, cy - r * .42 + oy2, r * .84, r * .26); ctx.fillStyle = '#556'; ctx.fillRect(cx - r * .32 + ox2, cy - r * .4 + oy2, r * .18, r * .07);
+  ctx.fillStyle = '#111'; ctx.fillRect(cx - r * .45 + ox2, cy - r * .38 + oy2, r * .9, r * .27); ctx.fillStyle = '#7a8aa8'; ctx.fillRect(cx - r * .34 + ox2, cy - r * .36 + oy2, r * .2, r * .07);
 }
+function pcDrawAt(fn, x, cs) { fn(0); if (x < 0.5) fn(PCC * cs); else if (x > PCC - 1.5) fn(-PCC * cs); }
 function pcFrame(t) {
   ctx.setTransform(sx, 0, 0, sy, 0, 0);
-  const g0 = ctx.createLinearGradient(0, 0, 0, H); g0.addColorStop(0, '#10062a'); g0.addColorStop(1, '#05030f'); ctx.fillStyle = g0; ctx.fillRect(0, 0, W, H);
-  const { cs, mw, mh, ox, oy } = pcGeom(), cx0 = c => ox + (c + .5) * cs, cy0 = r => oy + (r + .5) * cs;
+  const g0 = ctx.createLinearGradient(0, 0, 0, H); g0.addColorStop(0, '#0a0420'); g0.addColorStop(1, '#030210'); ctx.fillStyle = g0; ctx.fillRect(0, 0, W, H);
+  const { cs, mw, mh, ox, oy, side } = pcGeom(), cx0 = c => ox + (c + .5) * cs, cy0 = r => oy + (r + .5) * cs;
+  ctx.fillStyle = '#000'; ctx.fillRect(ox, oy, mw, mh);
   const flash = pc.sub === 'clear' && Math.floor(pc.subT * 5) % 2 === 0;
-  ctx.fillStyle = 'rgba(255,255,255,.04)'; ctx.fillRect(ox - 6, oy - 6, mw + 12, mh + 12);
+  // muri: contorno blu a doppia linea, come nell'originale
+  const isW = (c, r) => r >= 0 && r < PCR && c >= 0 && c < PCC && pc.grid[r][c] === '#';
+  ctx.beginPath();
+  for (let r = 0; r < PCR; r++) for (let c = 0; c < PCC; c++) {
+    if (pc.grid[r][c] !== '#') continue;
+    const x = ox + c * cs, y = oy + r * cs;
+    if (!isW(c, r - 1)) { ctx.moveTo(x, y); ctx.lineTo(x + cs, y); }
+    if (!isW(c, r + 1)) { ctx.moveTo(x, y + cs); ctx.lineTo(x + cs, y + cs); }
+    if (!isW(c - 1, r)) { ctx.moveTo(x, y); ctx.lineTo(x, y + cs); }
+    if (!isW(c + 1, r)) { ctx.moveTo(x + cs, y); ctx.lineTo(x + cs, y + cs); }
+  }
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = flash ? '#ffffff' : '#2a3cff'; ctx.lineWidth = Math.max(3, cs * .3); ctx.stroke();
+  ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(1, cs * .12); ctx.stroke();
   for (let r = 0; r < PCR; r++) for (let c = 0; c < PCC; c++) {
     const ch = pc.grid[r][c], x = ox + c * cs, y = oy + r * cs;
-    if (ch === '#') {
-      ctx.fillStyle = flash ? '#3a4a9a' : '#0c1360'; ctx.fillRect(x, y, cs, cs);
-      ctx.strokeStyle = flash ? '#fff' : '#4d6bff'; ctx.lineWidth = Math.max(2, cs * .1); ctx.beginPath();
-      const ln = (a, b, c2, d) => { ctx.moveTo(a, b); ctx.lineTo(c2, d); }, i = ctx.lineWidth / 2;
-      if (pcTile(c, r - 1) !== '#') ln(x, y + i, x + cs, y + i);
-      if (pcTile(c, r + 1) !== '#') ln(x, y + cs - i, x + cs, y + cs - i);
-      if (pcTile(c - 1, r) !== '#') ln(x + i, y, x + i, y + cs);
-      if (pcTile(c + 1, r) !== '#') ln(x + cs - i, y, x + cs - i, y + cs);
-      ctx.stroke();
-    } else if (ch === '-') { ctx.fillStyle = '#ffb8de'; ctx.fillRect(x, y + cs * .42, cs, cs * .16); }
-    else if (ch === '.') { ctx.fillStyle = '#ffd9b0'; ctx.beginPath(); ctx.arc(x + cs / 2, y + cs / 2, cs * .09, 0, 7); ctx.fill(); }
-    else if (ch === 'o' && Math.floor(t / 250) % 2 === 0) { ctx.fillStyle = '#fff2d0'; ctx.beginPath(); ctx.arc(x + cs / 2, y + cs / 2, cs * .27, 0, 7); ctx.fill(); }
+    if (ch === '-') { ctx.fillStyle = '#ffb8de'; ctx.fillRect(x, y + cs * .42, cs, cs * .16); }
+    else if (ch === '.') { ctx.fillStyle = '#ffd0b0'; const d = Math.max(2, cs * .18); ctx.fillRect(x + (cs - d) / 2, y + (cs - d) / 2, d, d); }
+    else if (ch === 'o' && Math.floor(t / 250) % 2 === 0) { ctx.fillStyle = '#ffe0c0'; ctx.beginPath(); ctx.arc(x + cs / 2, y + cs / 2, cs * .36, 0, 7); ctx.fill(); }
   }
-  const r = cs * .44;
-  if (pc.sub !== 'clear' || true) pcPlayerDraw(pc.p, cx0(pc.p.x), cy0(pc.p.y), r, t);
-  if (pc.sub !== 'dying' || pc.subT < .5) pc.ghosts.forEach(g => { const by = g.state === 'house' ? Math.sin(t / 150 + g.rel) * cs * .12 : 0; pcGhostDraw(g, cx0(g.x), cy0(g.y) + by, r, t); });
+  const r = cs * .46;
+  if (pc.fruit) pcFruitDraw(pc.fruit.type, ox + (pc.fruit.x + .5) * cs, cy0(pc.fruit.y), r * (pc.fruit.life < 2 && Math.floor(t / 150) % 2 ? .7 : 1));
+  pcDrawAt(off => pcPlayerDraw(pc.p, cx0(pc.p.x) + off, cy0(pc.p.y), r, t), pc.p.x, cs);
+  if (pc.sub !== 'dying' || pc.subT < .5) pc.ghosts.forEach(g => { const by = g.state === 'house' ? Math.sin(t / 150 + g.rel) * cs * .12 : 0; pcDrawAt(off => pcGhostDraw(g, cx0(g.x) + off, cy0(g.y) + by, r, t), g.x, cs); });
   floaters.forEach(f => text(f.t, f.x, f.y, Math.max(16, cs * .8), '#7ad8ff'));
-  if (pc.sub === 'ready') text('PRONTO!', W / 2, oy + 11.4 * cs + cs * .3, cs * 1.1, '#ffd400');
+  if (pc.sub === 'ready') text('PRONTO!', W / 2, oy + 17 * cs + cs * .8, cs * 1.1, '#ffd400');
   // HUD
-  const lives = () => { for (let i = 0; i < Math.max(0, pc.lives - (pc.sub === 'ready' || pc.sub === 'run' ? 1 : 0)); i++) { const lx = (portrait ? ox : ox - 150 * ui) + 16 * ui + i * 34 * ui, ly = portrait ? oy + mh + 36 * ui : oy + 150 * ui; pcPlayerDraw({ dx: 1, dy: 0 }, lx, ly, 13 * ui, 0); } };
-  const hb = hudBtns(), left = hb.length ? Math.min(...hb.map(b => b.x)) : W - safe.r;
-  if (portrait) {
+  const nl = Math.max(0, pc.lives - (pc.sub === 'ready' || pc.sub === 'run' ? 1 : 0));
+  const lives = (lx, ly, step) => { for (let i = 0; i < nl; i++) pcPlayerDraw({ dx: 1, dy: 0 }, lx + i * step, ly, 12 * ui, 0); };
+  const hb = hudBtns();
+  if (!side) {
     text('PANC MAN', safe.l + 16, safe.t + 12 * ui + 32 * ui, 30 * ui, '#ffd400', 'left');
     text('PUNTI ' + String(pc.score).padStart(5, '0') + '   RECORD ' + String(pc.hi).padStart(5, '0'), safe.l + 16, safe.t + 12 * ui + 62 * ui, 20 * ui, '#fff', 'left');
-    text('LIVELLO ' + pc.level, W - safe.r - 16, oy + mh + 40 * ui, 20 * ui, '#ffe34a', 'right');
-    lives();
-    text(isTouch ? 'Scorri con il dito per muoverti' : 'Frecce o WASD per muoverti', W / 2, oy + mh + 82 * ui, 20 * ui, '#fff');
+    lives(ox + 14 * ui, oy + mh + 30 * ui, 32 * ui);
+    pcFruitDraw((pc.level - 1) % FRUIT_PTS.length, ox + mw - 20 * ui, oy + mh + 30 * ui, 14 * ui);
+    text('LIVELLO ' + pc.level, ox + mw - 46 * ui, oy + mh + 36 * ui, 18 * ui, '#ffe34a', 'right');
+    text(isTouch ? 'Scorri con il dito per muoverti' : 'Frecce o WASD per muoverti', W / 2, oy + mh + 78 * ui, 20 * ui, '#fff');
   } else {
-    const lx = Math.max(safe.l + 24, 24), px = ox - 20;
-    text('PANC MAN', lx, safe.t + 12 * ui + 40 * ui, 40, '#ffd400', 'left');
-    text('PUNTI', lx, oy + 40, 22, '#fff', 'left'); text(String(pc.score).padStart(5, '0'), lx, oy + 84, 44, '#ffd400', 'left');
-    text('RECORD', lx, oy + 124, 20, '#fff', 'left'); text(String(pc.hi).padStart(5, '0'), lx, oy + 156, 30, '#fff', 'left');
-    lives();
+    const lx = Math.max(safe.l + 24, 24);
+    text('PANC MAN', lx, safe.t + 12 + 40, 40, '#ffd400', 'left');
+    text('PUNTI', lx, oy + 80, 22, '#fff', 'left'); text(String(pc.score).padStart(5, '0'), lx, oy + 124, 44, '#ffd400', 'left');
+    text('RECORD', lx, oy + 168, 20, '#fff', 'left'); text(String(pc.hi).padStart(5, '0'), lx, oy + 200, 30, '#fff', 'left');
+    lives(lx + 14, oy + 250, 32);
     const rx = ox + mw + 30;
-    text('LIVELLO ' + pc.level, rx, oy + 40, 26, '#ffe34a', 'left');
-    text(isTouch ? 'Scorri per muoverti' : 'Frecce / WASD', rx, oy + 84, 22, '#fff', 'left');
-    text('Mangia tutti i puntini', rx, oy + 116, 20, '#ddd', 'left'); text('Palline grandi = fantasmi', rx, oy + 142, 20, '#ddd', 'left'); text('blu da mangiare!', rx, oy + 166, 20, '#ddd', 'left');
+    text('LIVELLO ' + pc.level, rx, oy + 80, 26, '#ffe34a', 'left'); pcFruitDraw((pc.level - 1) % FRUIT_PTS.length, rx + 20, oy + 120, 16);
+    text(isTouch ? 'Scorri per muoverti' : 'Frecce / WASD', rx, oy + 170, 22, '#fff', 'left');
+    text('Mangia tutti i puntini', rx, oy + 204, 19, '#ddd', 'left'); text('Palline grandi: fantasmi', rx, oy + 230, 19, '#ddd', 'left'); text('blu da mangiare!', rx, oy + 254, 19, '#ddd', 'left');
   }
   pcOverlays();
   hb.forEach(drawHudBtn);
@@ -953,6 +1074,219 @@ function pcOverlays() {
   }
 }
 
+// ---------- BAND BLOCKS: si gioca scegliendo Palmè (Tetris con gli strumenti musicali) ----------
+const PALME = CHARS.findIndex(c => c.name === 'PALMÈ');
+let tg = null;
+const TW = 10, TH = 20;
+const TET_TYPES = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
+const TET_SHAPE = {
+  I: [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]],
+  O: [[1, 1], [1, 1]],
+  T: [[0, 1, 0], [1, 1, 1], [0, 0, 0]],
+  S: [[0, 1, 1], [1, 1, 0], [0, 0, 0]],
+  Z: [[1, 1, 0], [0, 1, 1], [0, 0, 0]],
+  J: [[1, 0, 0], [1, 1, 1], [0, 0, 0]],
+  L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]],
+};
+const TET_COL = { I: '#c4733a', O: '#d63a2a', T: '#f2f2f8', S: '#e8b53a', Z: '#7fb0d8', J: '#8a8a9a', L: '#2d2d3a' };
+const TET_NAME = { I: 'Chitarra', O: 'Batteria', T: 'Tastiera', S: 'Sassofono', Z: 'Flauto', J: 'Microfono', L: 'Amplificatore' };
+const tet = { board: [], cur: null, next: [], bag: [], hold: null, canHold: true, score: 0, hi: +safeGet('duemilas_tethi') || 0, lines: 0, level: 1, fall: 0, lock: 0, lockMoves: 0, flash: null, sub: 'ready', subT: 0, softHeld: false };
+const tetCopy = m => m.map(r => r.slice());
+function tetTake() {
+  if (!tet.bag.length) { tet.bag = TET_TYPES.slice(); for (let i = tet.bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [tet.bag[i], tet.bag[j]] = [tet.bag[j], tet.bag[i]]; } }
+  return tet.bag.pop();
+}
+function tetCollide(m, x, y) {
+  for (let r = 0; r < m.length; r++) for (let c = 0; c < m[r].length; c++) {
+    if (!m[r][c]) continue;
+    const bx = x + c, by = y + r;
+    if (bx < 0 || bx >= TW || by >= TH) return true;
+    if (by >= 0 && tet.board[by][bx]) return true;
+  }
+  return false;
+}
+function tetSpawn(type) {
+  type = type || tet.next.shift(); if (!tet.next.length || tet.next.length < 3) while (tet.next.length < 3) tet.next.push(tetTake());
+  const m = tetCopy(TET_SHAPE[type]);
+  tet.cur = { type, m, x: Math.floor((TW - m.length) / 2), y: type === 'I' ? -1 : 0 };
+  tet.fall = 0; tet.lock = 0; tet.lockMoves = 0;
+  if (tetCollide(m, tet.cur.x, tet.cur.y)) tetOver();
+}
+function tetInit() {
+  tet.board = Array.from({ length: TH }, () => Array(TW).fill(null)); tet.bag = []; tet.next = []; tet.hold = null; tet.canHold = true;
+  tet.score = 0; tet.lines = 0; tet.level = 1; tet.flash = null; tet.sub = 'ready'; tet.subT = 0; tet.softHeld = false;
+  for (let i = 0; i < 3; i++) tet.next.push(tetTake());
+  tetSpawn();
+}
+function tetOver() {
+  state = 'dead'; deadAt = performance.now();
+  if (tet.score > tet.hi) { tet.hi = tet.score; newRecord = true; safeSet('duemilas_tethi', tet.hi); } else newRecord = false;
+  beep(300, .5, 'sawtooth', .06, 50);
+}
+const tetInterval = () => Math.max(.06, .8 - (tet.level - 1) * .07);
+function tetTouch() { if (tet.lock > 0 && tet.lockMoves < 12) { tet.lock = .0001; tet.lockMoves++; } }
+function tetMove(dx) {
+  if (state !== 'run' || tet.sub !== 'run' || !tet.cur || tet.flash) return;
+  if (!tetCollide(tet.cur.m, tet.cur.x + dx, tet.cur.y)) { tet.cur.x += dx; tetTouch(); beep(500, .02, 'square', .02); }
+}
+function tetRotate(dir) {
+  if (state !== 'run' || tet.sub !== 'run' || !tet.cur || tet.flash || tet.cur.type === 'O') return;
+  const m = tet.cur.m, n = m.length, nm = tetCopy(m);
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) { if (dir > 0) nm[r][c] = m[n - 1 - c][r]; else nm[r][c] = m[c][n - 1 - r]; }
+  for (const [kx, ky] of [[0, 0], [-1, 0], [1, 0], [0, -1], [-2, 0], [2, 0], [-1, -1], [1, -1]]) {
+    if (!tetCollide(nm, tet.cur.x + kx, tet.cur.y + ky)) { tet.cur.m = nm; tet.cur.x += kx; tet.cur.y += ky; tetTouch(); beep(700, .03, 'square', .025, 900); return; }
+  }
+}
+function tetGhostY() { let y = tet.cur.y; while (!tetCollide(tet.cur.m, tet.cur.x, y + 1)) y++; return y; }
+function tetHard() {
+  if (state !== 'run' || tet.sub !== 'run' || !tet.cur || tet.flash) return;
+  const gy = tetGhostY(); tet.score += 2 * (gy - tet.cur.y); tet.cur.y = gy; tetLock(); beep(160, .08, 'square', .05, 90);
+}
+function tetHold() {
+  if (state !== 'run' || tet.sub !== 'run' || !tet.cur || tet.flash || !tet.canHold) return;
+  const t0 = tet.cur.type;
+  if (tet.hold) { const h = tet.hold; tet.hold = t0; tetSpawn(h); } else { tet.hold = t0; tetSpawn(); }
+  tet.canHold = false; beep(420, .06, 'square', .03, 300);
+}
+function tetLock() {
+  const c = tet.cur; let over = false;
+  c.m.forEach((row, r) => row.forEach((v, cc) => { if (v) { const by = c.y + r, bx = c.x + cc; if (by < 0) over = true; else tet.board[by][bx] = c.type; } }));
+  tet.cur = null; if (over) { tetOver(); return; }
+  const rows = []; for (let r = 0; r < TH; r++) if (tet.board[r].every(v => v)) rows.push(r);
+  tet.canHold = true;
+  if (rows.length) { tet.flash = { rows, t: 0 }; beep(880, .12, 'square', .05, 1320); }
+  else tetSpawn();
+}
+function tetClearRows() {
+  const rows = tet.flash.rows, n = rows.length;
+  tet.board = tet.board.filter((_, r) => !rows.includes(r)); while (tet.board.length < TH) tet.board.unshift(Array(TW).fill(null));
+  tet.score += [0, 100, 300, 500, 800][n] * tet.level; tet.lines += n;
+  const lv = 1 + Math.floor(tet.lines / 10); if (lv > tet.level) beep(1000, .25, 'square', .05, 1600); tet.level = lv;
+  tet.flash = null; tetSpawn();
+}
+function tetUpdate(dt) {
+  dt = Math.min(dt, .05); tet.subT += dt;
+  if (tet.sub === 'ready') { if (tet.subT > 1.2) { tet.sub = 'run'; tet.subT = 0; } return; }
+  if (tet.flash) { tet.flash.t += dt; if (tet.flash.t > .32) tetClearRows(); return; }
+  if (!tet.cur) return;
+  const iv = tet.softHeld ? Math.min(tetInterval(), .04) : tetInterval();
+  tet.fall += dt;
+  if (tetCollide(tet.cur.m, tet.cur.x, tet.cur.y + 1)) {
+    if (tet.lock <= 0) tet.lock = .0001; tet.lock += dt;
+    if (tet.lock > (tet.softHeld ? .15 : .5)) tetLock();
+  } else {
+    tet.lock = 0;
+    while (tet.fall >= iv && !tetCollide(tet.cur.m, tet.cur.x, tet.cur.y + 1)) { tet.cur.y++; tet.fall -= iv; if (tet.softHeld) tet.score += 1; }
+    if (tet.fall > iv) tet.fall = 0;
+  }
+}
+function tetSoftStep() {
+  if (state !== 'run' || tet.sub !== 'run' || !tet.cur || tet.flash) return;
+  if (!tetCollide(tet.cur.m, tet.cur.x, tet.cur.y + 1)) { tet.cur.y++; tet.score += 1; tet.fall = 0; }
+}
+function tetGeom() {
+  const side = !portrait && W / H >= 1.5;
+  const mt = side ? safe.t + 14 : safe.t + 182 * ui, mb = side ? safe.b + 14 : safe.b + 20;
+  const cs = Math.max(10, Math.floor(Math.min((W - 24) / TW, (H - mt - mb) / TH))), bw = cs * TW, bh = cs * TH;
+  return { cs, bw, bh, side, ox: Math.round((W - bw) / 2), oy: Math.round(mt + (H - mt - mb - bh) / 2) };
+}
+function tetTile(type, x, y, s, alpha) {
+  const b = Math.max(2, s * .12);
+  ctx.save(); if (alpha) ctx.globalAlpha = alpha;
+  ctx.fillStyle = TET_COL[type]; ctx.fillRect(x + 1, y + 1, s - 2, s - 2);
+  ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillRect(x + 1, y + 1, s - 2, b); ctx.fillRect(x + 1, y + 1, b, s - 2);
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(x + 1, y + s - 1 - b, s - 2, b); ctx.fillRect(x + s - 1 - b, y + 1, b, s - 2);
+  const dot = (cx, cy, r) => { ctx.beginPath(); ctx.arc(x + s * cx, y + s * cy, s * r, 0, 7); ctx.fill(); };
+  if (type === 'I') { ctx.fillStyle = '#ecdcb4'; ctx.fillRect(x + s * .15, y + s * .3, s * .7, s * .05); ctx.fillRect(x + s * .15, y + s * .65, s * .7, s * .05); ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(x + s * .48, y + s * .12, s * .04, s * .76); }
+  else if (type === 'O') { ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, s * .06); ctx.beginPath(); ctx.arc(x + s / 2, y + s / 2, s * .3, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.22)'; dot(.5, .5, .24); ctx.fillStyle = '#e8e8e8'; [[.5, .14], [.5, .86], [.14, .5], [.86, .5]].forEach(([a, c]) => ctx.fillRect(x + s * a - s * .05, y + s * c - s * .05, s * .1, s * .1)); }
+  else if (type === 'T') { ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(x + s * .5 - 1, y + s * .1, Math.max(1, s * .03), s * .8); ctx.fillStyle = '#222'; ctx.fillRect(x + s * .22, y + s * .12, s * .16, s * .5); ctx.fillRect(x + s * .62, y + s * .12, s * .16, s * .5); }
+  else if (type === 'S') { ctx.strokeStyle = 'rgba(255,255,255,.65)'; ctx.lineWidth = Math.max(1, s * .07); ctx.beginPath(); ctx.arc(x + s * .5, y + s * .5, s * .28, -.8, 1.2); ctx.stroke(); ctx.fillStyle = '#8a5a10'; dot(.5, .3, .07); dot(.5, .62, .07); }
+  else if (type === 'Z') { ctx.fillStyle = '#e8f2fb'; ctx.fillRect(x + s * .12, y + s * .46, s * .76, s * .08); ctx.fillStyle = '#334'; dot(.3, .3, .06); dot(.5, .3, .06); dot(.7, .3, .06); }
+  else if (type === 'J') { ctx.fillStyle = 'rgba(0,0,0,.45)'; [.25, .5, .75].forEach(a => [.25, .5, .75].forEach(c => dot(a, c, .06))); }
+  else if (type === 'L') { ctx.fillStyle = '#555'; for (let i = 0; i < 4; i++) ctx.fillRect(x + s * .15, y + s * .2 + i * s * .14, s * .7, s * .06); ctx.fillStyle = '#ff3030'; dot(.8, .84, .05); }
+  ctx.restore();
+}
+function tetMini(type, x, y, sz) {
+  const m = TET_SHAPE[type], cs2 = Math.floor(sz / 5); let minR = 9, maxR = -1, minC = 9, maxC = -1;
+  m.forEach((row, r) => row.forEach((v, c) => { if (v) { minR = Math.min(minR, r); maxR = Math.max(maxR, r); minC = Math.min(minC, c); maxC = Math.max(maxC, c); } }));
+  const w = (maxC - minC + 1) * cs2, h = (maxR - minR + 1) * cs2, ox2 = x + (sz - w) / 2, oy2 = y + (sz - h) / 2;
+  m.forEach((row, r) => row.forEach((v, c) => { if (v) tetTile(type, ox2 + (c - minC) * cs2, oy2 + (r - minR) * cs2, cs2); }));
+}
+function tetBox(x, y, sz, label, type, dim, nm = true) {
+  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(x, y, sz, sz); ctx.strokeStyle = '#6a4fe0'; ctx.lineWidth = 3; ctx.strokeRect(x, y, sz, sz);
+  text(label, x + sz / 2, y - 8, Math.max(14, sz * .16), '#ffe34a');
+  if (type) { ctx.globalAlpha = dim ? .4 : 1; tetMini(type, x, y, sz); ctx.globalAlpha = 1; if (nm) text(TET_NAME[type], x + sz / 2, y + sz + Math.max(14, sz * .16) + 2, Math.max(12, sz * .14), '#fff'); }
+}
+function tetFrame(t) {
+  ctx.setTransform(sx, 0, 0, sy, 0, 0);
+  const g0 = ctx.createLinearGradient(0, 0, 0, H); g0.addColorStop(0, '#1a0a3a'); g0.addColorStop(1, '#07041a'); ctx.fillStyle = g0; ctx.fillRect(0, 0, W, H);
+  const beams = ['#ff7ae8', '#7ae8ff', '#ffe34a'];
+  for (let i = 0; i < 3; i++) { const bx = W * (.15 + i * .35), a = Math.sin(t / 1400 + i * 2) * .5; ctx.fillStyle = beams[i]; ctx.globalAlpha = .06; ctx.beginPath(); ctx.moveTo(bx - 6, -5); ctx.lineTo(bx + 6, -5); ctx.lineTo(bx + Math.sin(a) * 500 + 90, H); ctx.lineTo(bx + Math.sin(a) * 500 - 90, H); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  const { cs, bw, bh, ox, oy, side } = tetGeom();
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(ox, oy, bw, bh);
+  ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let c = 1; c < TW; c++) { ctx.moveTo(ox + c * cs, oy); ctx.lineTo(ox + c * cs, oy + bh); }
+  for (let r = 1; r < TH; r++) { ctx.moveTo(ox, oy + r * cs); ctx.lineTo(ox + bw, oy + r * cs); }
+  ctx.stroke();
+  for (let r = 0; r < TH; r++) for (let c = 0; c < TW; c++) { const v = tet.board[r] && tet.board[r][c]; if (v) tetTile(v, ox + c * cs, oy + r * cs, cs); }
+  if (tet.cur && !tet.flash) {
+    const gy = tetGhostY();
+    tet.cur.m.forEach((row, r) => row.forEach((v, c) => { if (v) { const by = gy + r; if (by >= 0) tetTile(tet.cur.type, ox + (tet.cur.x + c) * cs, oy + by * cs, cs, .22); } }));
+    tet.cur.m.forEach((row, r) => row.forEach((v, c) => { if (v) { const by = tet.cur.y + r; if (by >= 0) tetTile(tet.cur.type, ox + (tet.cur.x + c) * cs, oy + by * cs, cs); } }));
+  }
+  if (tet.flash) tet.flash.rows.forEach(r => { ctx.fillStyle = Math.floor(tet.flash.t * 20) % 2 ? 'rgba(255,255,255,.85)' : 'rgba(255,230,120,.7)'; ctx.fillRect(ox, oy + r * cs, bw, cs); });
+  ctx.strokeStyle = '#6a4fe0'; ctx.lineWidth = 4; ctx.strokeRect(ox - 2, oy - 2, bw + 4, bh + 4);
+  if (tet.sub === 'ready') text('PRONTI!', W / 2, oy + bh * .45, cs * 1.4, '#ffd400');
+  const next = tet.next;
+  if (!side) {
+    const bs = 100 * ui, by = safe.t + 74 * ui;
+    text('BAND BLOCKS', safe.l + 16, safe.t + 12 * ui + 32 * ui, 28 * ui, '#ffd400', 'left');
+    tetBox(ox, by, bs, 'HOLD', tet.hold, !tet.canHold, false); tetBox(ox + bw - bs, by, bs, 'NEXT', next[0], false, false);
+    text('PUNTI ' + String(tet.score).padStart(6, '0'), W / 2, by + 34 * ui, 26 * ui, '#fff'); text('RECORD ' + String(tet.hi).padStart(6, '0'), W / 2, by + 64 * ui, 18 * ui, '#ddd');
+    text('RIGHE ' + tet.lines + '   LIV ' + tet.level, W / 2, by + 94 * ui, 20 * ui, '#ffe34a');
+  } else {
+    const lx = Math.max(safe.l + 24, 24), bs = Math.min(130, ox - lx - 30), rx = ox + bw + 30;
+    text('BAND BLOCKS', lx, safe.t + 12 + 38, 36, '#ffd400', 'left');
+    tetBox(lx, oy + 70, bs, 'HOLD', tet.hold, !tet.canHold);
+    text('PUNTI', lx, oy + 70 + bs + 70, 22, '#fff', 'left'); text(String(tet.score).padStart(6, '0'), lx, oy + 70 + bs + 112, 40, '#ffd400', 'left');
+    text('RECORD ' + String(tet.hi).padStart(6, '0'), lx, oy + 70 + bs + 146, 20, '#ddd', 'left');
+    for (let i = 0; i < 3; i++) tetBox(rx, oy + 70 + i * (bs * .62 + 40), bs * .62, i === 0 ? 'NEXT' : '', next[i], false, false);
+    text('RIGHE ' + tet.lines, rx, oy + 70 + 3 * (bs * .62 + 40) + 6, 22, '#ffe34a', 'left'); text('LIVELLO ' + tet.level, rx, oy + 70 + 3 * (bs * .62 + 40) + 34, 22, '#ffe34a', 'left');
+    drawChar(PALME, lx + 10, oy + bh - 36 * 3 - 4, 3, Math.floor(t / 300), false, false, false);
+  }
+  if (isTouch && tet.sub === 'run' && tet.lines === 0 && tet.score < 120) text('Tocca = ruota  •  trascina = muovi  •  scorri giù = cala', W / 2, oy + bh + (side ? -8 : -6) - 4, 18 * ui, 'rgba(255,255,255,.85)');
+  else if (!isTouch && tet.sub === 'run' && tet.score < 120) text('← → muovi  •  ↑ ruota  •  ↓ scendi  •  SPAZIO cala  •  C tieni', W / 2, oy + bh - 10, 18 * ui, 'rgba(255,255,255,.85)');
+  tetOverlays();
+  hudBtns().forEach(drawHudBtn);
+}
+function tetOverlays() {
+  const op = overlayPos();
+  if (state === 'pause') { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H); text('PAUSA', W / 2, op.by + 40 * ui, 76 * ui); btn(...op.again, 'RIPRENDI', true); btn(...op.menu, 'PERSONAGGI', false); }
+  if (state === 'dead') {
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
+    text('GAME OVER', W / 2, op.by + 30 * ui, 76 * ui, '#ff6a8a');
+    text(newRecord ? 'NUOVO RECORD: ' + tet.score : 'PUNTEGGIO: ' + tet.score, W / 2, op.by + 66 * ui, 30 * ui, newRecord ? '#7dff4a' : '#fff');
+    text('Righe: ' + tet.lines + '  •  Livello ' + tet.level, W / 2, op.by + 98 * ui, 20 * ui, '#ffe34a');
+    btn(...op.again, 'RIPROVA', true); btn(...op.menu, 'PERSONAGGI', false);
+  }
+}
+// gesti sul telefono: tocco = ruota, trascina = muovi, scorri giu' = scendi / cala
+cv.addEventListener('pointermove', e => {
+  if (!tg || tg.id !== e.pointerId || mode !== 'tetris' || state !== 'run') return;
+  const unit = tetGeom().cs * (vw / W), dx = e.clientX - tg.x, dy = e.clientY - tg.y;
+  if (Math.abs(dx) >= unit * .85) { tetMove(dx > 0 ? 1 : -1); tg.x += (dx > 0 ? 1 : -1) * unit * .85; tg.moved = true; }
+  if (dy >= unit * 1.1 && Math.abs(dy) > Math.abs(dx) * .6) { tetSoftStep(); tg.y += unit * 1.1; tg.moved = true; }
+});
+cv.addEventListener('pointerup', e => {
+  if (!tg || tg.id !== e.pointerId) return;
+  const g = tg; tg = null; if (mode !== 'tetris' || state !== 'run') return;
+  const dur = performance.now() - g.t0, tdx = e.clientX - g.sx, tdy = e.clientY - g.sy;
+  if (Math.hypot(tdx, tdy) < 14 && dur < 350) tetRotate(1);
+  else if (tdy > 90 && dur < 230 && Math.abs(tdx) < 70) tetHard();
+});
+cv.addEventListener('pointercancel', () => { tg = null; });
+
 let last = 0;
 function loop(ts) {
   const dt = Math.min(50, ts - (last || ts)); last = ts;
@@ -964,7 +1298,7 @@ requestAnimationFrame(loop);
 const inR = (p, r) => p.x >= r[0] && p.x <= r[0] + r[2] && p.y >= r[1] && p.y <= r[1] + r[3];
 function toMenu() { state = 'menu'; mode = 'runner'; reset(); }
 function action() {
-  if (mode === 'panc' && state === 'run') return;
+  if ((mode === 'panc' || mode === 'tetris') && state === 'run') return;
   if (state === 'menu') startGame();
   else if (state === 'dead') { if (performance.now() - deadAt > 350) startGame(); }
   else if (state === 'pause') state = 'run';
@@ -974,6 +1308,14 @@ function togglePause() { if (state === 'run') state = 'pause'; else if (state ==
 const JUMPK = ['Space', 'ArrowUp', 'KeyW'];
 addEventListener('keydown', e => {
   if (mode === 'panc' && state === 'run' && PC_KEYS[e.code]) { e.preventDefault(); pc.want = PC_KEYS[e.code]; return; }
+  if (mode === 'tetris' && state === 'run') {
+    const c = e.code; let h = true;
+    if (c === 'ArrowLeft' || c === 'KeyA') tetMove(-1); else if (c === 'ArrowRight' || c === 'KeyD') tetMove(1);
+    else if (c === 'ArrowUp' || c === 'KeyW' || c === 'KeyX') { if (!e.repeat) tetRotate(1); } else if (c === 'KeyZ') { if (!e.repeat) tetRotate(-1); }
+    else if (c === 'ArrowDown' || c === 'KeyS') tet.softHeld = true; else if (c === 'Space') { if (!e.repeat) tetHard(); }
+    else if (c === 'KeyC' || c === 'ShiftLeft') { if (!e.repeat) tetHold(); } else h = false;
+    if (h) { e.preventDefault(); return; }
+  }
   if (JUMPK.includes(e.code) || e.code === 'Enter') { e.preventDefault(); if (!e.repeat) action(); }
   else if (['ArrowDown', 'KeyS'].includes(e.code)) { e.preventDefault(); keyDuck = true; syncHolds(); }
   else if (state === 'menu' && ['ArrowLeft', 'KeyA'].includes(e.code)) { sel = (sel + CHARS.length - 1) % CHARS.length; beep(600, .05); }
@@ -984,7 +1326,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyF') toggleFS();
 });
 addEventListener('keyup', e => {
-  if (['ArrowDown', 'KeyS'].includes(e.code)) { keyDuck = false; syncHolds(); }
+  if (['ArrowDown', 'KeyS'].includes(e.code)) { keyDuck = false; syncHolds(); tet.softHeld = false; }
   if (JUMPK.includes(e.code)) { keyJump = false; syncHolds(); }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'run') state = 'pause'; });
@@ -1010,6 +1352,7 @@ cv.addEventListener('pointerdown', e => {
     if (inR(p, op.again)) state = 'run';
   } else {
     if (mode === 'panc') { swipe = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch (er) {} return; }
+    if (mode === 'tetris') { tg = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t0: performance.now(), moved: false }; try { cv.setPointerCapture(e.pointerId); } catch (er) {} return; }
     const zone = p.x < W / 2 ? 'duck' : 'jump';
     ptrs.set(e.pointerId, zone); try { cv.setPointerCapture(e.pointerId); } catch (er) {}
     syncHolds(); if (zone === 'jump') jump();
