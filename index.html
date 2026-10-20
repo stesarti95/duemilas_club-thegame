@@ -481,6 +481,8 @@ const bgL = new Image(), bgP = new Image(); bgL.src = BG_L; bgP.src = BG_P;
 const photos = PHOTO_SRC.map(src => { const im = new Image(); im.src = src; return im; });
 const ready = im => im && im.complete && im.naturalWidth > 0;
 let isTouch = false;
+const FILOI = CHARS.findIndex(c => c.name === 'FILO');
+const MENU_HINT = { touch: ['Sterza: tieni premuto a sinistra / destra • tocca TURBO', 'Scorri il dito per muoverti', 'Pulsanti o gesti: tocca = ruota, trascina = muovi', 'In gioco: destra = salta • sinistra = abbassati', 'Scorri il dito per girare', 'Trascina per muoverti: spari da solo'], key: ['← → sterza • SPAZIO turbo', 'Frecce o WASD per muoverti', '← → muovi • ↑ ruota • ↓ scendi • SPAZIO cala • C tieni', 'SPAZIO salta • ↓ abbassati', 'Frecce o WASD per girare', 'Frecce muovi • SPAZIO spara'] };
 try { isTouch = (typeof matchMedia === 'function' && matchMedia('(pointer:coarse)').matches) || (navigator.maxTouchPoints > 0); } catch (e) {}
 const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
 const FS_OK = (() => { try { const d = document.documentElement; return !!(d.requestFullscreen || d.webkitRequestFullscreen); } catch (e) { return false; } })();
@@ -503,13 +505,13 @@ function readSafe() {
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 function menuGeom() {
   const cols = !portrait ? 6 : (W / H > .7 ? 3 : 2), rows = Math.ceil(CHARS.length / cols), gap = 14 * ui, mx = 16;
-  const top = safe.t + 160 * ui, btnH = 54 * ui, bottom = H - safe.b - btnH - 56 * ui;
+  const top = safe.t + (portrait ? 198 : 164) * ui, btnH = 54 * ui, bottom = H - safe.b - btnH - 56 * ui;
   const availW = W - safe.l - safe.r - 2 * mx, availH = bottom - top;
   const cw = Math.min(portrait ? 390 : 270, (availW - (cols - 1) * gap) / cols);
-  const chh = Math.max(150, Math.min(cw * 1.18, (availH - (rows - 1) * gap) / rows));
+  const chh = Math.max(150, Math.min(cw * 1.42, (availH - (rows - 1) * gap) / rows));
   const bw = cols * cw + (cols - 1) * gap, bh = rows * chh + (rows - 1) * gap;
   const x0 = safe.l + (W - safe.l - safe.r - bw) / 2, y0 = top + Math.max(0, (availH - bh) / 2);
-  const ph = Math.round(Math.min((cw - 20) / 1.64, chh * .5)), rh = chh - 30 - ph, s = clamp(Math.floor(rh / 36), 2, 4);
+  const ph = Math.round(Math.min((cw - 20) / 1.4, chh * .5)), rh = chh - 30 - ph, s = clamp(Math.floor(rh / 36), 2, 4);
   const cards = CHARS.map((_, i) => [x0 + (i % cols) * (cw + gap), y0 + Math.floor(i / cols) * (chh + gap), cw, chh]);
   return { cards, ph, s, cw, chh, btn: [W / 2 - 130 * ui, H - safe.b - btnH - 20 * ui, 260 * ui, btnH] };
 }
@@ -645,7 +647,9 @@ function update(dt) {
 
 // ---------- disegno ----------
 function text(txt, x, y, size, fill = '#f6c862', align = 'center') {
-  ctx.font = size + "px Impact,'Arial Black',sans-serif"; ctx.textAlign = align; ctx.lineJoin = 'round';
+  ctx.font = size + "px Impact,'Arial Black',sans-serif";
+  const w0 = ctx.measureText(txt).width, mw = W - 24; if (w0 > mw && w0 > 0) { size = size * mw / w0; ctx.font = size + "px Impact,'Arial Black',sans-serif"; }
+  ctx.textAlign = align; ctx.lineJoin = 'round';
   ctx.lineWidth = size / 4; ctx.strokeStyle = '#000'; ctx.strokeText(txt, x + 3, y + 3); ctx.strokeText(txt, x, y);
   ctx.fillStyle = fill; ctx.fillText(txt, x, y);
 }
@@ -675,7 +679,7 @@ function drawCrowd() {
 }
 function tri(cx, cy, s, up) { ctx.beginPath(); if (up) { ctx.moveTo(cx, cy - s); ctx.lineTo(cx + s, cy + s * .7); ctx.lineTo(cx - s, cy + s * .7); } else { ctx.moveTo(cx, cy + s); ctx.lineTo(cx + s, cy - s * .7); ctx.lineTo(cx - s, cy - s * .7); } ctx.closePath(); ctx.fill(); }
 function hudBtns() {
-  const bs = 46 * ui, g = 10 * ui, y = safe.t + 12 * ui, list = []; let x = W - safe.r - 12 * ui - bs;
+  const bs = (isTouch ? 54 : 46) * ui, g = 10 * ui, y = safe.t + 12 * ui, list = []; let x = W - safe.r - 12 * ui - bs;
   if (state === 'run' || state === 'pause') { list.push({ id: 'pause', x, y, w: bs, h: bs }); x -= bs + g; }
   list.push({ id: 'sound', x, y, w: bs, h: bs }); x -= bs + g;
   if (FS_OK) list.push({ id: 'full', x, y, w: bs, h: bs });
@@ -704,7 +708,7 @@ function drawHudBtn(b) {
 }
 function overlayPos() {
   const by = Math.round(GROUND * .3), bw = 210 * ui, bh = 54 * ui;
-  return { by, again: [W / 2 - bw - 12 * ui, by + 125 * ui, bw, bh], menu: [W / 2 + 12 * ui, by + 125 * ui, bw, bh] };
+  return { by, again: [W / 2 - bw - 12 * ui, by + 142 * ui, bw, bh], menu: [W / 2 + 12 * ui, by + 142 * ui, bw, bh] };
 }
 function drawBackground() {
   const im = portrait ? bgP : bgL;
@@ -783,10 +787,10 @@ function draw(t) {
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, W, H);
     text('GAME OVER', W / 2, op.by + 30 * ui, 76 * ui, '#ff6a8a');
-    text(newRecord ? 'NUOVO RECORD: ' + score : 'PUNTEGGIO: ' + score, W / 2, op.by + 66 * ui, 30 * ui, newRecord ? '#7dff4a' : '#fff');
-    text('Note raccolte: ' + notesGot, W / 2, op.by + 98 * ui, 20 * ui, '#ffe34a');
+    text(newRecord ? 'NUOVO RECORD: ' + score : 'PUNTEGGIO: ' + score, W / 2, op.by + 78 * ui, 30 * ui, newRecord ? '#7dff4a' : '#fff');
+    text('Note raccolte: ' + notesGot, W / 2, op.by + 114 * ui, 20 * ui, '#ffe34a');
     btn(...op.again, 'RIPROVA', true); btn(...op.menu, 'PERSONAGGI', false);
-    text(isTouch ? 'Tocca ovunque per riprovare' : 'SPAZIO riprova  •  Esc menu', W / 2, op.by + 125 * ui + 54 * ui + 34 * ui, 20 * ui, '#fff');
+    text(isTouch ? 'Tocca ovunque per riprovare' : 'SPAZIO riprova  •  Esc menu', W / 2, op.by + 142 * ui + 54 * ui + 34 * ui, 20 * ui, '#fff');
   }
   hb.forEach(drawHudBtn);
 }
@@ -818,19 +822,20 @@ function logoTitle(txt, x, y, size) {
   ctx.strokeStyle = '#f6c862'; ctx.lineWidth = size * .05; ctx.strokeText(txt, x, y);
   ctx.fillStyle = '#f6c862'; ctx.fillText(txt, x, y);
   ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.save(); ctx.beginPath(); ctx.rect(x - w / 2, y - size * .78, w, size * .14); ctx.clip(); ctx.fillText(txt, x, y); ctx.restore();   // luce in alto
-  const rs = size * .66, rx = x + w / 2 + size * .02, ry = y + rs * .9;
+  const rs = size * .52, rx = x + w / 2 + size * .02, ry = y + rs * .95;
   ctx.font = "900 " + rs + "px 'Arial Black',Impact,sans-serif"; ctx.textAlign = 'right'; ctx.lineJoin = 'round';
   ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; ctx.lineWidth = rs * .3;
-  for (let i = Math.max(3, Math.round(rs * .12)); i >= 1; i--) { ctx.strokeText('run', rx - i * .9, ry - i * .9); ctx.fillText('run', rx - i * .9, ry - i * .9); }
-  ctx.strokeText('run', rx, ry);
-  ctx.strokeStyle = '#ff7ae8'; ctx.lineWidth = rs * .08; ctx.strokeText('run', rx, ry); ctx.fillStyle = '#ffffff'; ctx.fillText('run', rx, ry);
+  for (let i = Math.max(3, Math.round(rs * .12)); i >= 1; i--) { ctx.strokeText('games', rx - i * .9, ry - i * .9); ctx.fillText('games', rx - i * .9, ry - i * .9); }
+  ctx.strokeText('games', rx, ry);
+  ctx.strokeStyle = '#ff7ae8'; ctx.lineWidth = rs * .08; ctx.strokeText('games', rx, ry); ctx.fillStyle = '#ffffff'; ctx.fillText('games', rx, ry);
   ctx.restore();
 }
 function drawMenu(t) {
   const g = MG;
-  const ts = 60 * ui, ty = safe.t + 18 * ui + ts * .82;
+  const ts = 60 * ui, ty = safe.t + 18 * ui + ts * .82 + (portrait ? 46 * ui : 0);
+  ctx.fillStyle = 'rgba(24,8,56,.5)'; ctx.fillRect(0, 0, W, GROUND);
   logoTitle('DUEMILAS', W / 2 - ts * .12, ty, ts);
-  text(sel === STE ? 'JACK SNAKE: allunga il cavo, non toccarti!' : sel === PEDE ? 'DUEMILAPEDE: spara al millepiedi!' : sel === STEVE ? 'STEVE KART: arriva primo in 3 giri!' : sel === GABRI ? 'PANC MAN: mangia tutti i puntini!' : sel === PALME ? 'BAND BLOCKS: incastra gli strumenti!' : 'Salta più amplificatori possibili!', W / 2, ty + ts * .66 * .9 + 30 * ui, 24 * ui, '#fff');
+  text(sel === STE ? 'JACK SNAKE: allunga il cavo, non toccarti!' : sel === PEDE ? 'DUEMILAPEDE: spara al millepiedi!' : sel === STEVE ? 'STEVE KART: arriva primo in 3 giri!' : sel === GABRI ? 'PANC MAN: mangia tutti i puntini!' : sel === PALME ? 'BAND BLOCKS: incastra gli strumenti!' : 'Salta più amplificatori possibili!', W / 2, ty + ts * .52 * .95 + 32 * ui, 24 * ui, '#fff');
   for (let i = 0; i < CHARS.length; i++) {
     const [x, y, w, h] = g.cards[i], on = i === sel;
     ctx.fillStyle = on ? 'rgba(20,8,40,.88)' : 'rgba(20,8,40,.58)'; ctx.fillRect(x, y, w, h);
@@ -846,7 +851,7 @@ function drawMenu(t) {
       else { const gr = ctx.createLinearGradient(px, py, px + pw, py + ph); gr.addColorStop(0, '#1d8a6a'); gr.addColorStop(1, '#6a4fe0'); ctx.fillStyle = gr; ctx.fillRect(px, py, pw, ph); const s2 = clamp(Math.floor((ph - 36) / 36), 2, 5); drawChar(i, px + pw / 2 - 13 * s2, py + 4, s2, on ? player.frame : 0, false, false, false); }
     }
     if (!on) { ctx.fillStyle = 'rgba(10,4,30,.38)'; ctx.fillRect(px, py, pw, ph); }
-    const bl = i === GABRI ? 'PANC MAN' : i === PALME ? 'BAND BLOCKS' : i === STEVE ? 'STEVE KART' : i === STE ? 'JACK SNAKE' : null;
+    const bl = i === GABRI ? 'PANC MAN' : i === PALME ? 'BAND BLOCKS' : i === STEVE ? 'STEVE KART' : i === STE ? 'JACK SNAKE' : i === PEDE ? 'DUEMILAPEDE' : i === FILOI ? 'DUEMILAS RUN' : null;
     if (bl) { ctx.font = "15px Impact,'Arial Black',sans-serif"; const bw = ctx.measureText(bl).width + 22; ctx.fillStyle = '#ffd400'; ctx.fillRect(px + 6, py + 6, bw, 24); ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(px + 6, py + 6, bw, 24); ctx.fillStyle = '#000'; ctx.textAlign = 'left'; ctx.fillText(bl, px + 17, py + 23); }
     ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(px, py, pw, ph);
     ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(px, py + ph - 30, pw, 30);
@@ -857,7 +862,7 @@ function drawMenu(t) {
     roleLines(CHARS[i].role).forEach((ln, k) => text(ln, rx + rw / 2, y + ph + 20 + 36 * s * .45 + k * (fs + 6), fs, on ? '#fff' : '#ccc'));
   }
   btn(...g.btn, 'GIOCA', true);
-  text(isTouch ? 'In gioco: tocca a DESTRA per saltare • a SINISTRA per abbassarti' : '← → scegli  •  SPAZIO / INVIO gioca  •  in gioco: SPAZIO salta, ↓ abbassa', W / 2, g.btn[1] - 12 * ui, 17 * ui, '#fff');
+  text((isTouch ? '' : '← → scegli • INVIO gioca  |  ') + (isTouch ? MENU_HINT.touch : MENU_HINT.key)[sel], W / 2, g.btn[1] - 12 * ui, 17 * ui, '#fff');
 }
 // ---------- PANC MAN: si gioca scegliendo Gabri (Pac-Man con la cresta punk) ----------
 const GABRI = CHARS.findIndex(c => c.name === 'GABRI');
@@ -1103,8 +1108,8 @@ function pcFrame(t) {
     else if (ch === '.') { ctx.fillStyle = '#ffd0b0'; const d = Math.max(2, cs * .18); ctx.fillRect(x + (cs - d) / 2, y + (cs - d) / 2, d, d); }
     else if (ch === 'o' && Math.floor(t / 250) % 2 === 0) { ctx.fillStyle = '#ffe0c0'; ctx.beginPath(); ctx.arc(x + cs / 2, y + cs / 2, cs * .36, 0, 7); ctx.fill(); }
   }
-  const r = cs * .46;
-  if (pc.fruit) pcFruitDraw(pc.fruit.type, ox + (pc.fruit.x + .5) * cs, cy0(pc.fruit.y), r * (pc.fruit.life < 2 && Math.floor(t / 150) % 2 ? .7 : 1));
+  const r = cs * .7, rf = cs * .52;
+  if (pc.fruit) pcFruitDraw(pc.fruit.type, ox + (pc.fruit.x + .5) * cs, cy0(pc.fruit.y), rf * (pc.fruit.life < 2 && Math.floor(t / 150) % 2 ? .7 : 1));
   pcDrawAt(off => pcPlayerDraw(pc.p, cx0(pc.p.x) + off, cy0(pc.p.y), r, t), pc.p.x, cs);
   if (pc.sub !== 'dying' || pc.subT < .5) pc.ghosts.forEach(g => { const by = g.state === 'house' ? Math.sin(t / 150 + g.rel) * cs * .12 : 0; pcDrawAt(off => pcGhostDraw(g, cx0(g.x) + off, cy0(g.y) + by, r, t), g.x, cs); });
   floaters.forEach(f => text(f.t, f.x, f.y, Math.max(16, cs * .8), '#7ad8ff'));
@@ -1143,8 +1148,8 @@ function pcOverlays() {
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 0, W, H);
     text('GAME OVER', W / 2, op.by + 30 * ui, 76 * ui, '#ff6a8a');
-    text(newRecord ? 'NUOVO RECORD: ' + pc.score : 'PUNTEGGIO: ' + pc.score, W / 2, op.by + 66 * ui, 30 * ui, newRecord ? '#7dff4a' : '#fff');
-    text('Livello raggiunto: ' + pc.level, W / 2, op.by + 98 * ui, 20 * ui, '#ffe34a');
+    text(newRecord ? 'NUOVO RECORD: ' + pc.score : 'PUNTEGGIO: ' + pc.score, W / 2, op.by + 78 * ui, 30 * ui, newRecord ? '#7dff4a' : '#fff');
+    text('Livello raggiunto: ' + pc.level, W / 2, op.by + 114 * ui, 20 * ui, '#ffe34a');
     btn(...op.again, 'RIPROVA', true); btn(...op.menu, 'PERSONAGGI', false);
   }
 }
@@ -1239,8 +1244,25 @@ function tetClearRows() {
   const lv = 1 + Math.floor(tet.lines / 10); if (lv > tet.level) beep(1000, .25, 'square', .05, 1600); tet.level = lv;
   tet.flash = null; tetSpawn();
 }
+function tetBtns() {
+  if (!isTouch) return [];
+  const g = tetGeom(), ids = ['left', 'right', 'rot', 'soft', 'hard'], gap = 10 * ui;
+  if (!g.side) { const w = Math.min(92 * ui, (W - 24 - gap * 4) / 5), x0 = (W - (5 * w + 4 * gap)) / 2, y = H - safe.b - w - 12 * ui; return ids.map((id, i) => ({ id, x: x0 + i * (w + gap), y, w, h: w })); }
+  const w = 84, lx = Math.max(safe.l + 24, 24), rx = g.ox + g.bw + 30, y = g.oy + g.bh - w - 4;
+  return [{ id: 'left', x: lx, y, w, h: w }, { id: 'right', x: lx + w + 12, y, w, h: w }, { id: 'rot', x: rx, y, w, h: w }, { id: 'soft', x: rx + w + 12, y, w, h: w }, { id: 'hard', x: rx + 2 * (w + 12), y, w, h: w }];
+}
+function tetBtnDraw(b, on) {
+  ctx.fillStyle = on ? 'rgba(255,226,74,.4)' : 'rgba(0,0,0,.55)'; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle = '#6a4fe0'; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2, r = b.w * .22;
+  ctx.fillStyle = '#f6c862'; ctx.strokeStyle = '#f6c862'; ctx.lineWidth = b.w * .07; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const tri = (dx, dy) => { ctx.beginPath(); if (dy) { ctx.moveTo(cx - r * 1.1, cy - dy * r); ctx.lineTo(cx, cy + dy * r); ctx.lineTo(cx + r * 1.1, cy - dy * r); } else { ctx.moveTo(cx - dx * r, cy - r * 1.1); ctx.lineTo(cx + dx * r, cy); ctx.lineTo(cx - dx * r, cy + r * 1.1); } ctx.closePath(); ctx.fill(); };
+  if (b.id === 'left') tri(-1, 0); else if (b.id === 'right') tri(1, 0); else if (b.id === 'soft') tri(0, 1);
+  else if (b.id === 'hard') { ctx.save(); ctx.translate(0, -r * .5); tri(0, 1); ctx.translate(0, r * 1.1); tri(0, 1); ctx.restore(); }
+  else { ctx.beginPath(); ctx.arc(cx, cy, r, -2.4, 2.6); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx + r * .1, cy - r * 1.5); ctx.lineTo(cx + r * 1.2, cy - r * .9); ctx.lineTo(cx + r * .1, cy - r * .2); ctx.closePath(); ctx.fill(); }
+}
 function tetUpdate(dt) {
   dt = Math.min(dt, .05); tet.subT += dt;
+  if (tet.btn && (tet.btn.id === 'left' || tet.btn.id === 'right')) { const now = performance.now(); if (now - tet.btn.t0 > 220 && now - tet.btn.last > 85) { tetMove(tet.btn.id === 'left' ? -1 : 1); tet.btn.last = now; } }
   if (tet.sub === 'ready') { if (tet.subT > 1.2) { tet.sub = 'run'; tet.subT = 0; } return; }
   if (tet.flash) { tet.flash.t += dt; if (tet.flash.t > .32) tetClearRows(); return; }
   if (!tet.cur) return;
@@ -1261,7 +1283,7 @@ function tetSoftStep() {
 }
 function tetGeom() {
   const side = !portrait && W / H >= 1.5;
-  const mt = side ? safe.t + 14 : safe.t + 182 * ui, mb = side ? safe.b + 14 : safe.b + 20;
+  const mt = side ? safe.t + 14 : safe.t + 196 * ui, mb = side ? safe.b + 14 : safe.b + (isTouch ? 124 * ui : 20);
   const cs = Math.max(10, Math.floor(Math.min((W - 24) / TW, (H - mt - mb) / TH))), bw = cs * TW, bh = cs * TH;
   return { cs, bw, bh, side, ox: Math.round((W - bw) / 2), oy: Math.round(mt + (H - mt - mb - bh) / 2) };
 }
@@ -1315,7 +1337,7 @@ function tetFrame(t) {
   if (tet.sub === 'ready') text('PRONTI!', W / 2, oy + bh * .45, cs * 1.4, '#ffd400');
   const next = tet.next;
   if (!side) {
-    const bs = 100 * ui, by = safe.t + 74 * ui;
+    const bs = 100 * ui, by = safe.t + 92 * ui; tet.holdRect = [ox, by, bs, bs];
     text('BAND BLOCKS', safe.l + 16, safe.t + 12 * ui + 32 * ui, 28 * ui, '#ffd400', 'left');
     tetBox(ox, by, bs, 'HOLD', tet.hold, !tet.canHold, false); tetBox(ox + bw - bs, by, bs, 'NEXT', next[0], false, false);
     text('PUNTI ' + String(tet.score).padStart(6, '0'), W / 2, by + 34 * ui, 26 * ui, '#fff'); text('RECORD ' + String(tet.hi).padStart(6, '0'), W / 2, by + 64 * ui, 18 * ui, '#ddd');
@@ -1323,15 +1345,16 @@ function tetFrame(t) {
   } else {
     const lx = Math.max(safe.l + 24, 24), bs = Math.min(130, ox - lx - 30), rx = ox + bw + 30;
     text('BAND BLOCKS', lx, safe.t + 12 + 38, 36, '#ffd400', 'left');
-    tetBox(lx, oy + 70, bs, 'HOLD', tet.hold, !tet.canHold);
+    tetBox(lx, oy + 70, bs, 'HOLD', tet.hold, !tet.canHold); tet.holdRect = [lx, oy + 70, bs, bs];
     text('PUNTI', lx, oy + 70 + bs + 70, 22, '#fff', 'left'); text(String(tet.score).padStart(6, '0'), lx, oy + 70 + bs + 112, 40, '#ffd400', 'left');
     text('RECORD ' + String(tet.hi).padStart(6, '0'), lx, oy + 70 + bs + 146, 20, '#ddd', 'left');
     for (let i = 0; i < 3; i++) tetBox(rx, oy + 70 + i * (bs * .62 + 40), bs * .62, i === 0 ? 'NEXT' : '', next[i], false, false);
     text('RIGHE ' + tet.lines, rx, oy + 70 + 3 * (bs * .62 + 40) + 6, 22, '#ffe34a', 'left'); text('LIVELLO ' + tet.level, rx, oy + 70 + 3 * (bs * .62 + 40) + 34, 22, '#ffe34a', 'left');
-    drawChar(PALME, lx + 10, oy + bh - 36 * 3 - 4, 3, Math.floor(t / 300), false, false, false);
+    if (!isTouch) drawChar(PALME, lx + 10, oy + bh - 36 * 3 - 4, 3, Math.floor(t / 300), false, false, false);
   }
-  if (isTouch && tet.sub === 'run' && tet.lines === 0 && tet.score < 120) text('Tocca = ruota  •  trascina = muovi  •  scorri giù = cala', W / 2, oy + bh + (side ? -8 : -6) - 4, 18 * ui, 'rgba(255,255,255,.85)');
+  if (isTouch && tet.sub === 'run' && tet.lines === 0 && tet.score < 120) text('Pulsanti o gesti: tocca = ruota • trascina = muovi', W / 2, oy + bh + (side ? -8 : -6) - 4, 18 * ui, 'rgba(255,255,255,.85)');
   else if (!isTouch && tet.sub === 'run' && tet.score < 120) text('← → muovi  •  ↑ ruota  •  ↓ scendi  •  SPAZIO cala  •  C tieni', W / 2, oy + bh - 10, 18 * ui, 'rgba(255,255,255,.85)');
+  tetBtns().forEach(b => tetBtnDraw(b, tet.btn && tet.btn.id === b.id));
   tetOverlays();
   hudBtns().forEach(drawHudBtn);
 }
@@ -1341,8 +1364,8 @@ function tetOverlays() {
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
     text('GAME OVER', W / 2, op.by + 30 * ui, 76 * ui, '#ff6a8a');
-    text(newRecord ? 'NUOVO RECORD: ' + tet.score : 'PUNTEGGIO: ' + tet.score, W / 2, op.by + 66 * ui, 30 * ui, newRecord ? '#7dff4a' : '#fff');
-    text('Righe: ' + tet.lines + '  •  Livello ' + tet.level, W / 2, op.by + 98 * ui, 20 * ui, '#ffe34a');
+    text(newRecord ? 'NUOVO RECORD: ' + tet.score : 'PUNTEGGIO: ' + tet.score, W / 2, op.by + 78 * ui, 30 * ui, newRecord ? '#7dff4a' : '#fff');
+    text('Righe: ' + tet.lines + '  •  Livello ' + tet.level, W / 2, op.by + 114 * ui, 20 * ui, '#ffe34a');
     btn(...op.again, 'RIPROVA', true); btn(...op.menu, 'PERSONAGGI', false);
   }
 }
@@ -1361,6 +1384,7 @@ cv.addEventListener('pointerup', e => {
   else if (tdy > 90 && dur < 230 && Math.abs(tdx) < 70) tetHard();
 });
 cv.addEventListener('pointercancel', () => { tg = null; });
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => cv.addEventListener(ev, e => { if (tet.btn && tet.btn.pid === e.pointerId) { if (tet.btn.id === 'soft') tet.softHeld = false; tet.btn = null; } }));
 
 // ---------- STEVE KART: si gioca scegliendo Steve (corsa di kart in prospettiva, 3 giri) ----------
 const STEVE = CHARS.findIndex(c => c.name === 'STEVE');
@@ -1416,7 +1440,7 @@ function kUpdate(dt) {
   else if (kk.speed < lim) kk.speed += KS.vmax * (kk.boost > 0 ? 1.8 : .55) * dt * (1 - kk.speed / (lim * 1.15));
   else kk.speed = Math.max(lim, kk.speed - KS.vmax * .8 * dt);
   const dxs = dt * 2.1 * sp * (kk.spin > 0 ? .3 : 1);
-  kk.x += st * dxs * 1.15; kk.x -= dxs * sp * ps.curve * .3 * 1.4;
+  kk.x += st * dxs * 1.5; kk.x -= dxs * sp * ps.curve * .3 * .85;
   kk.x = Math.max(-2.3, Math.min(2.3, kk.x));
   kk.pos = (kk.pos + kk.speed * dt) % kk.trackLen; kk.dist += kk.speed * dt; kk.sky += ps.curve * sp * dt * 14;
   // oggetti sulla strada
@@ -1552,8 +1576,8 @@ function kOverlays() {
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
     text(kk.finishRank === 1 ? 'HAI VINTO!' : 'TRAGUARDO!', W / 2, op.by + 30 * ui, 76 * ui, kk.finishRank === 1 ? '#7dff4a' : '#ffd400');
-    text('Posizione: ' + kk.finishRank + '° su ' + (K_RIVALS.length + 1), W / 2, op.by + 66 * ui, 30 * ui, '#fff');
-    text('Tempo ' + Math.floor(kk.time / 60) + ':' + String(Math.floor(kk.time % 60)).padStart(2, '0') + '.' + String(Math.floor(kk.time * 10) % 10) + (kk.best ? '   •   Miglior vittoria ' + Math.floor(kk.best / 60) + ':' + String(Math.floor(kk.best % 60)).padStart(2, '0') : ''), W / 2, op.by + 98 * ui, 20 * ui, '#ffe34a');
+    text('Posizione: ' + kk.finishRank + '° su ' + (K_RIVALS.length + 1), W / 2, op.by + 78 * ui, 30 * ui, '#fff');
+    text('Tempo ' + Math.floor(kk.time / 60) + ':' + String(Math.floor(kk.time % 60)).padStart(2, '0') + '.' + String(Math.floor(kk.time * 10) % 10) + (kk.best ? '   •   Miglior vittoria ' + Math.floor(kk.best / 60) + ':' + String(Math.floor(kk.best % 60)).padStart(2, '0') : ''), W / 2, op.by + 114 * ui, 20 * ui, '#ffe34a');
     btn(...op.again, 'RIPROVA', true); btn(...op.menu, 'PERSONAGGI', false);
   }
 }
@@ -1729,8 +1753,8 @@ function pdOverlays() {
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
     text('GAME OVER', W / 2, op.by + 30 * ui, 76 * ui, '#ff6a8a');
-    text(newRecord ? 'NUOVO RECORD: ' + pd.score : 'PUNTEGGIO: ' + pd.score, W / 2, op.by + 66 * ui, 30 * ui, newRecord ? '#7dff4a' : '#fff');
-    text('Livello raggiunto: ' + pd.level, W / 2, op.by + 98 * ui, 20 * ui, '#ffe34a');
+    text(newRecord ? 'NUOVO RECORD: ' + pd.score : 'PUNTEGGIO: ' + pd.score, W / 2, op.by + 78 * ui, 30 * ui, newRecord ? '#7dff4a' : '#fff');
+    text('Livello raggiunto: ' + pd.level, W / 2, op.by + 114 * ui, 20 * ui, '#ffe34a');
     btn(...op.again, 'RIPROVA', true); btn(...op.menu, 'PERSONAGGI', false);
   }
 }
@@ -1861,15 +1885,15 @@ function snOverlays() {
   if (state === 'dead') {
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
     text('CORTOCIRCUITO!', W / 2, op.by + 30 * ui, 66 * ui, '#ff6a8a');
-    text(newRecord ? 'NUOVO RECORD: ' + sn.score : 'PUNTEGGIO: ' + sn.score, W / 2, op.by + 66 * ui, 30 * ui, newRecord ? '#7dff4a' : '#fff');
-    text('Cavo lungo ' + sn.cells.length + ' metri', W / 2, op.by + 98 * ui, 20 * ui, '#ffe34a');
+    text(newRecord ? 'NUOVO RECORD: ' + sn.score : 'PUNTEGGIO: ' + sn.score, W / 2, op.by + 78 * ui, 30 * ui, newRecord ? '#7dff4a' : '#fff');
+    text('Cavo lungo ' + sn.cells.length + ' metri', W / 2, op.by + 114 * ui, 20 * ui, '#ffe34a');
     btn(...op.again, 'RIPROVA', true); btn(...op.menu, 'PERSONAGGI', false);
   }
 }
 cv.addEventListener('pointermove', e => {
   if (!snSwipe || snSwipe.id !== e.pointerId || mode !== 'snake' || state !== 'run') return;
   const dx = e.clientX - snSwipe.x, dy = e.clientY - snSwipe.y;
-  if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 14) return;
   if (Math.abs(dx) > Math.abs(dy)) snTurn(dx > 0 ? 1 : -1, 0); else snTurn(0, dy > 0 ? 1 : -1);
   snSwipe.x = e.clientX; snSwipe.y = e.clientY;
 });
@@ -1944,11 +1968,12 @@ function hudAction(id) {
   if (id === 'pause') togglePause(); else if (id === 'sound') setMuted(!muted); else if (id === 'full') toggleFS();
 }
 cv.addEventListener('contextmenu', e => e.preventDefault());
+['gesturestart', 'gesturechange'].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
 cv.addEventListener('pointerdown', e => {
   e.preventDefault();
   if (e.pointerType === 'touch') isTouch = true;
   const r = cv.getBoundingClientRect(), p = { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
-  for (const b of hudBtns()) if (inR(p, [b.x, b.y, b.w, b.h])) return hudAction(b.id);
+  for (const b of hudBtns()) if (inR(p, [b.x - 6, b.y - 6, b.w + 12, b.h + 12])) return hudAction(b.id);
   if (state === 'menu') {
     if (inR(p, MG.btn)) return startGame();
     for (let i = 0; i < CHARS.length; i++) if (inR(p, MG.cards[i])) { if (sel === i) return startGame(); sel = i; beep(600, .05); return; }
@@ -1965,7 +1990,15 @@ cv.addEventListener('pointerdown', e => {
     if (mode === 'snake') { snSwipe = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch (er) {} return; }
     if (mode === 'pede') { pd.touch = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch (er) {} return; }
     if (mode === 'kart') { const G2 = { x: W / 2, y: H - safe.b - 60 * ui, r: 46 * ui }; if (Math.hypot(p.x - G2.x, p.y - G2.y) < G2.r) { kUseItem(); return; } kk.ptr.set(e.pointerId, p.x < W / 2 ? -1 : 1); try { cv.setPointerCapture(e.pointerId); } catch (er) {} return; }
-    if (mode === 'tetris') { tg = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t0: performance.now(), moved: false }; try { cv.setPointerCapture(e.pointerId); } catch (er) {} return; }
+    if (mode === 'tetris') {
+      const hr = tet.holdRect; if (hr && inR(p, hr)) { tetHold(); return; }
+      for (const b of tetBtns()) if (inR(p, [b.x - 4, b.y - 4, b.w + 8, b.h + 8])) {
+        tet.btn = { id: b.id, pid: e.pointerId, t0: performance.now(), last: performance.now() }; try { cv.setPointerCapture(e.pointerId); } catch (er) {}
+        if (b.id === 'left') tetMove(-1); else if (b.id === 'right') tetMove(1); else if (b.id === 'rot') tetRotate(1); else if (b.id === 'soft') tet.softHeld = true; else if (b.id === 'hard') tetHard();
+        return;
+      }
+      tg = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t0: performance.now(), moved: false }; try { cv.setPointerCapture(e.pointerId); } catch (er) {} return;
+    }
     const zone = p.x < W / 2 ? 'duck' : 'jump';
     ptrs.set(e.pointerId, zone); try { cv.setPointerCapture(e.pointerId); } catch (er) {}
     syncHolds(); if (zone === 'jump') jump();
@@ -1975,7 +2008,7 @@ const release = e => { ptrs.delete(e.pointerId); syncHolds(); if (swipe && swipe
 cv.addEventListener('pointermove', e => {
   if (!swipe || swipe.id !== e.pointerId || mode !== 'panc') return;
   const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
-  if (Math.max(Math.abs(dx), Math.abs(dy)) < 22) return;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 14) return;
   pc.want = Math.abs(dx) > Math.abs(dy) ? [dx > 0 ? 1 : -1, 0] : [0, dy > 0 ? 1 : -1]; swipe.x = e.clientX; swipe.y = e.clientY;
 });
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => cv.addEventListener(ev, release));
