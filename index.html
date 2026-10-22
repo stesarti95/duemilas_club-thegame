@@ -988,6 +988,11 @@ function pcUpdate(dt) {
   if (pc.fright > 0) { pc.fright -= dt; if (pc.fright <= 0) pc.ghosts.forEach(g => { if (g.state === 'fright') g.state = 'normal'; }); }
   else { pc.modeT += dt; const lim = pc.scatter ? Math.max(3, 7 - lv) : 20; if (pc.modeT > lim) { pc.modeT = 0; pc.scatter = !pc.scatter; pc.ghosts.forEach(g => { if (g.state === 'normal') { g.dx = -g.dx; g.dy = -g.dy; } }); } }
   const w = pc.want; if (w && (p.dx || p.dy) && w[0] === -p.dx && w[1] === -p.dy) { p.dx = w[0]; p.dy = w[1]; }
+  if (w && (p.dx || p.dy) && (w[0] !== p.dx || w[1] !== p.dy) && !(w[0] === -p.dx && w[1] === -p.dy)) {
+    // svolta in anticipo o in ritardo: se sei a meno di 0,38 celle da un incrocio, ti ci porto e giri
+    const cx = Math.round(p.x), cy = Math.round(p.y), along = p.dx ? Math.abs(p.x - cx) : Math.abs(p.y - cy), perp = p.dx ? Math.abs(p.y - cy) : Math.abs(p.x - cx), t2 = pcTile(cx + w[0], cy + w[1]);
+    if (perp < 1e-6 && along > 1e-6 && along <= .38 && t2 !== '#' && t2 !== '-') { p.x = cx; p.y = cy; p.dx = w[0]; p.dy = w[1]; }
+  }
   moveEnt(p, Math.min(8.4, 7.4 + lv * .1) * dt, pcPlayerDecide);
   if (pc.sub !== 'run') return;
   if (pc.fruit) {
@@ -1067,16 +1072,14 @@ function pcPlayerDraw(p, cx, cy, r, t) {
   if (mouth >= Math.PI - .02) return;
   ctx.fillStyle = '#ffd400'; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, ang + mouth, ang + Math.PI * 2 - mouth); ctx.closePath(); ctx.fill();
   if (dying && prog > .5) return;
-  // cresta punk: 7 punte alte, inclinate all'indietro rispetto alla corsa, con la punta rosa
-  const lean = -(p.dx || 0) * r * .32, base = cy - r * .62, hs = [.55, .9, 1.25, 1.55, 1.25, .9, .55];
-  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(1, r * .08); ctx.strokeStyle = '#7a5a10';
-  for (let i = 0; i < 7; i++) {
-    const x = cx + (i - 3) * r * .2, h = hs[i] * r * .85, tx = x + lean * hs[i] * 1.1, ty = base - h;
-    ctx.fillStyle = i % 2 ? '#ffe680' : '#fff6cc';
-    ctx.beginPath(); ctx.moveTo(x - r * .11, base + r * .25); ctx.lineTo(tx, ty); ctx.lineTo(x + r * .11, base + r * .25); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#ff5fb8'; ctx.beginPath(); ctx.moveTo(tx - (tx - x) * .0 - r * .035, ty + h * .22); ctx.lineTo(tx, ty); ctx.lineTo(tx + r * .035, ty + h * .22); ctx.closePath(); ctx.fill();
-  }
-  ctx.fillStyle = '#e8c850'; ctx.fillRect(cx - r * .72, base + r * .12, r * 1.44, r * .16);
+  // cresta punk: un'unica cresta a punte, arancio-oro con la punta chiara e rosa, inclinata all'indietro
+  const lean = -(p.dx || 0) * r * .34, by = cy - r * .42, lw = Math.max(1.2, r * .085), tx = [-.56, -.28, 0, .28, .56], th = [.95, 1.35, 1.75, 1.35, .95];
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const gr = ctx.createLinearGradient(0, by + r * .2, 0, by - r * 1.75); gr.addColorStop(0, '#ff7a00'); gr.addColorStop(.45, '#ffc400'); gr.addColorStop(1, '#fff6b0');
+  ctx.beginPath(); ctx.moveTo(cx - r * .74, by + r * .3);
+  for (let i = 0; i < 5; i++) { const k = th[i], tipx = cx + tx[i] * r + lean * k, tipy = by - k * r * .8; ctx.lineTo(cx + (tx[i] - .13) * r + lean * .35 * k, by - k * r * .3); ctx.lineTo(tipx, tipy); ctx.lineTo(cx + (tx[i] + .13) * r + lean * .35 * k, by - k * r * .3); if (i < 4) ctx.lineTo(cx + (tx[i] + .14) * r + lean * .1, by - r * .12); }
+  ctx.lineTo(cx + r * .74, by + r * .3); ctx.closePath(); ctx.fillStyle = gr; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = lw; ctx.stroke();
+  ctx.fillStyle = '#ff3fa8'; for (let i = 0; i < 5; i++) { const k = th[i], tipx = cx + tx[i] * r + lean * k, tipy = by - k * r * .8; ctx.beginPath(); ctx.moveTo(tipx, tipy); ctx.lineTo(tipx - r * .06 - lean * .12, tipy + k * r * .26); ctx.lineTo(tipx + r * .06 - lean * .12, tipy + k * r * .26); ctx.closePath(); ctx.fill(); }
   // occhiali da sole
   const ox2 = (p.dx || 0) * r * .18, oy2 = (p.dy || 0) * r * .12;
   ctx.fillStyle = '#111'; ctx.fillRect(cx - r * .45 + ox2, cy - r * .38 + oy2, r * .9, r * .27); ctx.fillStyle = '#7a8aa8'; ctx.fillRect(cx - r * .34 + ox2, cy - r * .36 + oy2, r * .2, r * .07);
@@ -1414,7 +1417,7 @@ function kBuild() {
 function kFind(z) { return kk.segs[Math.floor(((z % kk.trackLen) + kk.trackLen) % kk.trackLen / KS.seg) % kk.N]; }
 function kInit() {
   if (!kk.segs.length) kBuild();
-  kk.pos = 0; kk.x = 0; kk.speed = 0; kk.dist = 0; kk.item = 0; kk.boost = 0; kk.spin = 0; kk.sub = 'count'; kk.subT = 0; kk.finished = false; kk.time = 0; kk.shake = 0; kk.rank = 1;
+  kk.pos = 0; kk.x = 0; kk.speed = 0; kk.dist = 0; kk.item = 0; kk.boost = 0; kk.spin = 0; kk.sub = 'count'; kk.subT = 0; kk.finished = false; kk.st = 0; kk.lap = 1; kk.lapMsg = 0; kk.time = 0; kk.shake = 0; kk.rank = 1;
   kk.cars = K_RIVALS.map((r, i) => ({ ...r, dist: 900 + (i + 1) * 520, speed: 0, off: (i % 2 ? .5 : -.5) * (i < 2 ? 1 : .6), tgt: 0, tt: 0, done: false, doneT: 0 }));
   kk.segs.forEach(s => s.spr.forEach(p => { if (p.t === 'box') p.hid = 0; }));
 }
@@ -1432,9 +1435,10 @@ function kUpdate(dt) {
   // sterzo: tastiera o dita (sinistra / destra)
   let st = (kk.kr ? 1 : 0) - (kk.kl ? 1 : 0); kk.ptr.forEach(v => { st += v; }); st = Math.max(-1, Math.min(1, st));
   if (kk.finished) st = 0;
+  kk.st = (kk.st || 0) + (st - (kk.st || 0)) * Math.min(1, dt * 7); st = kk.st;   // sterzo progressivo, meglio col tocco
   if (kk.boost > 0) kk.boost -= dt; if (kk.spin > 0) kk.spin -= dt;
-  const maxSp = KS.vmax * (kk.boost > 0 ? 1.4 : 1), off = Math.abs(kk.x) > 1.02;
-  const lim = off && kk.boost <= 0 ? KS.vmax * .3 : maxSp;
+  const maxSp = KS.vmax * (kk.boost > 0 ? 1.4 : 1), off = Math.abs(kk.x) > 1.15;
+  const lim = off && kk.boost <= 0 ? KS.vmax * .4 : maxSp;
   if (kk.finished) kk.speed = Math.max(0, kk.speed - KS.vmax * .5 * dt);
   else if (kk.kbrake) kk.speed = Math.max(0, kk.speed - KS.vmax * 1.2 * dt);
   else if (kk.speed < lim) kk.speed += KS.vmax * (kk.boost > 0 ? 1.8 : .55) * dt * (1 - kk.speed / (lim * 1.15));
@@ -1443,11 +1447,13 @@ function kUpdate(dt) {
   kk.x += st * dxs * 1.5; kk.x -= dxs * sp * ps.curve * .3 * .85;
   kk.x = Math.max(-2.3, Math.min(2.3, kk.x));
   kk.pos = (kk.pos + kk.speed * dt) % kk.trackLen; kk.dist += kk.speed * dt; kk.sky += ps.curve * sp * dt * 14;
+  const lapNow = Math.floor(kk.dist / kk.trackLen) + 1; if (lapNow !== kk.lap && lapNow <= KS.laps) { kk.lap = lapNow; kk.lapMsg = 2; beep(780, .2, 'square', .05, 1170); }
+  if (kk.lapMsg > 0) kk.lapMsg -= dt;
   // oggetti sulla strada
   for (const s of ps.spr) {
     if (s.hid > kk.time || (s.t !== 'box' && s.t !== 'amp') || Math.abs(kk.x - s.off) > s.hw + .12) continue;
     if (s.t === 'box') { s.hid = kk.time + 10; if (!kk.item) { kk.item = 1; beep(900, .12, 'square', .05, 1500); } else beep(700, .08, 'square', .03); }
-    else { s.hid = kk.time + 6; kk.speed *= .35; kk.spin = .7; kk.shake = 10; beep(120, .25, 'sawtooth', .06, 60); }
+    else { s.hid = kk.time + 6; kk.speed *= .5; kk.spin = .55; kk.shake = 8; beep(120, .25, 'sawtooth', .06, 60); }
   }
   // giri e traguardo
   if (!kk.finished && kk.dist >= kk.trackLen * KS.laps) {
@@ -1541,11 +1547,11 @@ function kFrame(t) {
     const cs = carAt.get(sg.i);
     if (cs) for (const c of cs) {
       const pct = (c.dist % KS.seg) / KS.seg, sc2 = sg.p1.s.scale + (sg.p2.s.scale - sg.p1.s.scale) * pct, cx2 = sg.p1.s.x + (sg.p2.s.x - sg.p1.s.x) * pct + sc2 * c.off * KS.roadW * k, cy2 = sg.p1.s.y + (sg.p2.s.y - sg.p1.s.y) * pct;
-      const pw = (portrait ? W * .26 : W * .14) * (sc2 / G.pscale); if (pw > 3) kartDraw(cx2, cy2, pw, c.who, c.body, 0, false, t);
+      const pw = (portrait ? W * .26 : W * .14) * (sc2 / G.pscale); if (pw > 3) { kartDraw(cx2, cy2, pw, c.who, c.body, 0, false, t); if (pw > 44) text(c.name, cx2, cy2 - pw * 1.12, Math.max(13, pw * .2), '#fff'); }
     }
   }
   // il mio kart (Steve)
-  const kw = portrait ? W * .26 : W * .14, steer = (kk.kr ? 1 : 0) - (kk.kl ? 1 : 0) + [...kk.ptr.values()].reduce((a, b) => a + b, 0);
+  const kw = portrait ? W * .26 : W * .14, steer = kk.st || 0;
   ctx.save(); if (kk.spin > 0) { ctx.translate(W / 2, yp); ctx.rotate(Math.sin(kk.spin * 18) * .35); ctx.translate(-W / 2, -yp); }
   kartDraw(W / 2, yp, kw, 'steve', '#ff8a2a', Math.max(-1, Math.min(1, steer)), kk.boost > 0, t); ctx.restore();
   if (kk.boost > 0) { ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; for (let i = 0; i < 14; i++) { const a = rnd(0, 7), r0 = Math.min(W, H) * rnd(.25, .4); ctx.beginPath(); ctx.moveTo(W / 2 + Math.cos(a) * r0, H * .55 + Math.sin(a) * r0 * .8); ctx.lineTo(W / 2 + Math.cos(a) * (r0 + 50), H * .55 + Math.sin(a) * (r0 + 40)); ctx.stroke(); } }
@@ -1566,6 +1572,7 @@ function kFrame(t) {
   if (kk.sub === 'count') { const n = 3 - Math.floor(kk.subT); text(kk.subT < 3 ? String(Math.max(1, n)) : 'VIA!', W / 2, H * .38, 120 * ui, kk.subT < 3 ? '#fff' : '#7dff4a'); }
   else if (kk.sub === 'race' && kk.subT < 1.2) text('VIA!', W / 2, H * .38, 120 * ui, '#7dff4a');
   if (kk.finished) text('TRAGUARDO!', W / 2, H * .34, 70 * ui, '#ffd400');
+  else if (kk.lapMsg > 0 && kk.lap > 1) text(kk.lap === KS.laps ? 'ULTIMO GIRO!' : 'GIRO ' + kk.lap, W / 2, H * .3, 56 * ui, '#7ad8ff');
   if (isTouch && kk.sub === 'race' && kk.time < 6) { text('Tocca a sinistra / destra per sterzare', W / 2, H * .5, 24 * ui, 'rgba(255,255,255,.9)'); }
   else if (!isTouch && kk.sub === 'race' && kk.time < 6) text('← → sterzi  •  SPAZIO turbo  •  ↓ frena', W / 2, H * .5, 24 * ui, 'rgba(255,255,255,.9)');
   kOverlays(); hb.forEach(drawHudBtn);
